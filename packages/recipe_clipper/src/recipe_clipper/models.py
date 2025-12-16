@@ -25,7 +25,7 @@ class RecipeMetadata(ImmutableBaseModel):
     """Metadata about a recipe."""
 
     author: Optional[str] = Field(None, description="Recipe author or source")
-    servings: Optional[int] = Field(None, description="Number of servings")
+    servings: Optional[str] = Field(None, description="Number of servings")
     prep_time: Optional[int] = Field(None, description="Prep time in minutes")
     cook_time: Optional[int] = Field(None, description="Cook time in minutes")
     total_time: Optional[int] = Field(None, description="Total time in minutes")
