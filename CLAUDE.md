@@ -1,0 +1,278 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code when working with this repository.
+
+## Project Overview
+
+**Recipe Clipper** is a Python monorepo for extracting recipes from websites. It contains:
+
+- **Library Package** (`packages/recipe_clipper/`): Reusable Python library for recipe extraction
+- **CLI Tool**: Command-line interface included with the library package
+- **Web App** (`apps/recipe_manager/`): Web application using the library (coming soon)
+
+## Monorepo Structure
+
+```
+recipe-clipper/
+├── .github/workflows/         # CI/CD workflows (future)
+├── apps/                      # Applications
+│   └── recipe_manager/       # Web app (placeholder)
+├── packages/                  # Reusable libraries
+│   └── recipe_clipper/       # Main library + CLI
+│       ├── src/
+│       │   └── recipe_clipper/
+│       │       ├── __init__.py          # Public API (clip_recipe)
+│       │       ├── cli.py               # CLI implementation
+│       │       ├── clipper.py           # Main orchestration
+│       │       ├── models.py            # Pydantic data models
+│       │       ├── exceptions.py        # Custom exceptions
+│       │       ├── http.py              # HTTP client
+│       │       ├── formatters.py        # Output formatters
+│       │       └── parsers/             # Parser implementations
+│       │           ├── __init__.py
+│       │           └── recipe_scrapers_parser.py
+│       ├── tests/                       # Test suite
+│       ├── pyproject.toml               # Package configuration
+│       └── README.md                    # Library documentation
+├── pyproject.toml             # Root workspace configuration
+├── uv.lock                    # Dependency lock file
+├── README.md                  # Repository overview
+└── CLAUDE.md                  # This file
+```
+
+## Architecture and Design Principles
+
+### Pure Functional Design
+
+The library uses pure functions for core logic:
+
+- **No classes for business logic**: All operations are pure functions
+- **Function composition**: Complex operations built from simple functions
+- **Explicit dependencies**: All dependencies passed as function parameters
+- **Immutable data**: Pydantic models with `frozen=True`
+
+### Component Layers
+
+1. **Models** (`models.py`): Immutable Pydantic models
+   - `Recipe`, `Ingredient`, `RecipeMetadata`
+   - All models inherit from `ImmutableBaseModel`
+
+2. **HTTP Client** (`http.py`): Pure functions for fetching URLs
+   - `fetch_url(url, timeout, headers) -> HttpResponse`
+   - Returns Pydantic `HttpResponse` model
+
+3. **Parsers** (`parsers/`): Pure functions for parsing HTML
+   - `parse_with_recipe_scrapers(response) -> Recipe`
+   - Uses [recipe-scrapers](https://github.com/hhursev/recipe-scrapers) library
+
+4. **Orchestration** (`clipper.py`): Composes parsers in fallback chain
+   - `clip_recipe(url, timeout) -> Recipe`
+   - Fetches HTML → Tries recipe-scrapers
+
+5. **Formatters** (`formatters.py`): Pure functions for output formatting
+   - `format_recipe_text(recipe) -> str`
+   - `format_recipe_json(recipe) -> str`
+   - `format_recipe_markdown(recipe) -> str`
+
+6. **CLI** (`cli.py`): Typer-based command-line interface
+   - Single command (default): `recipe-clipper <URL>`
+   - Options: `--format`, `--output`, `--timeout`
+
+### Public API
+
+Only `clip_recipe` is exported at the top level:
+
+```python
+from recipe_clipper import clip_recipe
+
+recipe = clip_recipe("https://example.com/recipe", timeout=10)
+```
+
+Other components are imported from their modules:
+
+```python
+from recipe_clipper.models import Recipe
+from recipe_clipper.formatters import format_recipe_markdown
+```
+
+## Development Commands
+
+### Environment Setup
+
+```bash
+# Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install all dependencies
+uv sync --all-extras
+```
+
+### Running the CLI
+
+```bash
+# From repository root
+uv run --directory packages/recipe_clipper recipe-clipper <URL>
+
+# With options
+uv run --directory packages/recipe_clipper recipe-clipper <URL> --format json
+uv run --directory packages/recipe_clipper recipe-clipper <URL> --format markdown -o recipe.md
+```
+
+### Testing
+
+```bash
+# Run all tests
+uv run --directory packages/recipe_clipper pytest
+
+# Run specific test file
+uv run pytest packages/recipe_clipper/tests/test_clipper.py -v
+
+# Run with coverage
+uv run --directory packages/recipe_clipper pytest --cov=recipe_clipper --cov-report=html
+
+# Run only unit tests (skip integration tests)
+uv run --directory packages/recipe_clipper pytest -m "not integration"
+```
+
+### Code Quality
+
+```bash
+# Format code
+uv run ruff format packages/recipe_clipper/src/ packages/recipe_clipper/tests/
+
+# Lint code
+uv run ruff check packages/recipe_clipper/src/ packages/recipe_clipper/tests/
+
+# Type check
+uv run mypy packages/recipe_clipper/src/
+```
+
+## Key Conventions
+
+### Testing
+
+- **Function-based tests**: Use plain functions, not classes
+- **Fixtures**: Use pytest fixtures for shared test data
+- **Integration tests**: Tests that make real network calls
+- **String comparisons**: For formatters, compare full expected output
+
+### Code Style
+
+- **No abbreviations**: Use full words (e.g., `ingredient` not `ing`)
+- **Descriptive names**: Clear, self-documenting function names
+- **Type hints**: All functions have type annotations
+- **Docstrings**: Document public functions with clear descriptions
+
+### Models
+
+- **Immutability**: All models are frozen (cannot be modified after creation)
+- **Optional fields**: Use `Optional[Type]` for fields that may be None
+- **Field descriptions**: All Pydantic fields have descriptions
+
+### Error Handling
+
+- **Custom exceptions**: Use specific exception types from `exceptions.py`
+- **Error messages**: Include context (e.g., URL, error details)
+- **Exception chaining**: Use `raise ... from error` to preserve stack traces
+
+## Dependencies
+
+### Core Dependencies
+
+- **recipe-scrapers** (>=15.0.0): Recipe extraction from 100+ websites
+- **httpx** (>=0.27.0): HTTP client
+- **typer** (>=0.12.0): CLI framework
+- **rich** (>=13.0.0): Terminal formatting
+- **pydantic** (>=2.0.0): Data validation
+- **python-dotenv** (>=1.0.0): Environment variables
+
+### Dev Dependencies
+
+- **pytest** (>=8.0.0): Testing framework
+- **pytest-asyncio** (>=0.23.0): Async test support
+- **pytest-cov** (>=4.1.0): Coverage reporting
+- **respx** (>=0.21.0): HTTP mocking for tests
+- **ruff** (>=0.3.0): Linting and formatting
+- **mypy** (>=1.8.0): Type checking
+
+## Python Version Support
+
+- **Development**: Python 3.14 (latest)
+- **Library compatibility**: Python >=3.9
+- **Managed by uv**: Virtual environment with Python 3.14
+
+## CI/CD - GitHub Actions
+
+### Workflow Overview
+
+The repository uses GitHub Actions for continuous integration with smart path filtering:
+
+- **Separate jobs for library and app**: Only runs relevant checks when code changes
+- **Path-based triggers**: Uses `dorny/paths-filter` to detect which components changed
+- **Lint before test**: Ensures code quality before running tests
+- **Multi-version testing**: Library tests run on Python 3.9-3.14
+
+### Workflow Jobs
+
+**1. Change Detection** (`changes`)
+- Detects which paths changed in the PR/push
+- Outputs: `library` and `app` flags
+- Triggers appropriate downstream jobs
+
+**2. Library Pipeline** (runs if `packages/recipe_clipper/` changed)
+- `library-lint`: Runs ruff format check and lint
+- `library-test`: Runs pytest on Python 3.9-3.14
+  - Includes coverage reporting
+  - Uploads coverage to Codecov
+
+**3. App Pipeline** (runs if `apps/recipe_manager/` changed)
+- `app-lint`: Runs ruff format check and lint
+- `app-test`: Runs pytest
+
+**4. Workspace Checks** (always runs)
+- `workspace-lint`: Validates workspace configuration
+- Checks `uv.lock` is up to date
+
+### Path Filters
+
+Changes to these paths trigger library pipeline:
+- `packages/recipe_clipper/**`
+- `pyproject.toml` (root)
+- `uv.lock`
+
+Changes to these paths trigger app pipeline:
+- `apps/recipe_manager/**`
+- `pyproject.toml` (root)
+- `uv.lock`
+
+### Workflow Notes
+
+- **Efficiency**: Only runs necessary tests based on changed files
+- **Dependencies**: Lint jobs must pass before tests run
+- **Coverage**: Only uploaded from Python 3.14 runs
+- **Caching**: uv dependencies are cached for faster runs
+
+## Workflow Notes
+
+### Adding New Features
+
+1. Write tests first (TDD approach preferred)
+2. Implement pure functions
+3. Update type hints and docstrings
+4. Run tests and linting
+5. Update documentation if needed
+
+### Modifying Existing Code
+
+1. Read the existing implementation first
+2. Understand the test coverage
+3. Make minimal, focused changes
+4. Ensure all tests pass
+5. Avoid over-engineering or premature optimization
+
+### Working with Tests
+
+- Use `pytest` fixtures for shared test data
+- Function-based tests (not class-based)
+- Integration tests should use real network calls
+- Mock external dependencies appropriately
