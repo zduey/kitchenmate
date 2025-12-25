@@ -24,13 +24,9 @@ def parse_with_recipe_scrapers(response: HttpResponse) -> Recipe:
     try:
         scraper = scrape_html(response.content, response.url)
     except WebsiteNotImplementedError as error:
-        raise RecipeNotFoundError(
-            f"recipe-scrapers does not support {response.url}"
-        ) from error
+        raise RecipeNotFoundError(f"recipe-scrapers does not support {response.url}") from error
     except Exception as error:
-        raise RecipeParsingError(
-            f"Failed to create scraper for {response.url}: {error}"
-        ) from error
+        raise RecipeParsingError(f"Failed to create scraper for {response.url}: {error}") from error
 
     # Convert ingredients to our model
     ingredients = [Ingredient(name=ingredient) for ingredient in scraper.ingredients()]

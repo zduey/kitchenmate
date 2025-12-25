@@ -10,7 +10,7 @@ def format_recipe_text(recipe: Recipe) -> str:
     # Title
     lines.append(f"\n{'=' * 80}")
     lines.append(recipe.title.center(80))
-    lines.append('=' * 80)
+    lines.append("=" * 80)
 
     # Metadata
     if recipe.metadata:

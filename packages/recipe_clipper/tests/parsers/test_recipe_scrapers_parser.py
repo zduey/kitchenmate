@@ -5,7 +5,7 @@ import pytest
 
 from recipe_clipper.parsers.recipe_scrapers_parser import parse_with_recipe_scrapers
 from recipe_clipper.http import HttpResponse
-from recipe_clipper.models import Recipe, Ingredient, RecipeMetadata
+from recipe_clipper.models import Recipe
 from recipe_clipper.exceptions import RecipeNotFoundError, RecipeParsingError
 
 

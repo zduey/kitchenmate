@@ -54,9 +54,7 @@ def fetch_url(
                 url=str(response.url),
             )
     except httpx.HTTPStatusError as e:
-        raise NetworkError(
-            f"HTTP error {e.response.status_code} while fetching {url}"
-        ) from e
+        raise NetworkError(f"HTTP error {e.response.status_code} while fetching {url}") from e
     except httpx.RequestError as e:
         raise NetworkError(f"Network error while fetching {url}: {e}") from e
     except Exception as e:

@@ -43,7 +43,7 @@ def test_format_recipe_text(sample_recipe):
     """Test text formatter output."""
     output = format_recipe_text(sample_recipe)
 
-    expected = '\n================================================================================\n                             Chocolate Chip Cookies                             \n================================================================================\n\nMETADATA\n--------------------------------------------------------------------------------\nAuthor: Test Chef\nServings: 24 cookies\nPrep Time: 15 minutes\nCook Time: 12 minutes\nTotal Time: 27 minutes\nCategories: Dessert, Cookies\n\nINGREDIENTS\n--------------------------------------------------------------------------------\n  • 2 cups flour\n  • 1 cup sugar\n  • 2 cups chocolate chips\n\nINSTRUCTIONS\n--------------------------------------------------------------------------------\n1. Preheat oven to 350F\n2. Mix dry ingredients\n3. Add chocolate chips\n4. Bake for 12 minutes\n\nSource: https://example.com/recipe\n'
+    expected = "\n================================================================================\n                             Chocolate Chip Cookies                             \n================================================================================\n\nMETADATA\n--------------------------------------------------------------------------------\nAuthor: Test Chef\nServings: 24 cookies\nPrep Time: 15 minutes\nCook Time: 12 minutes\nTotal Time: 27 minutes\nCategories: Dessert, Cookies\n\nINGREDIENTS\n--------------------------------------------------------------------------------\n  • 2 cups flour\n  • 1 cup sugar\n  • 2 cups chocolate chips\n\nINSTRUCTIONS\n--------------------------------------------------------------------------------\n1. Preheat oven to 350F\n2. Mix dry ingredients\n3. Add chocolate chips\n4. Bake for 12 minutes\n\nSource: https://example.com/recipe\n"
 
     assert output == expected
 
@@ -70,6 +70,6 @@ def test_format_recipe_markdown(sample_recipe):
     """Test Markdown formatter output."""
     output = format_recipe_markdown(sample_recipe)
 
-    expected = '# Chocolate Chip Cookies\n\n## Metadata\n\n- **Author:** Test Chef\n- **Servings:** 24 cookies\n- **Prep Time:** 15 minutes\n- **Cook Time:** 12 minutes\n- **Total Time:** 27 minutes\n- **Categories:** Dessert, Cookies\n\n## Ingredients\n\n- 2 cups flour\n- 1 cup sugar\n- 2 cups chocolate chips\n\n## Instructions\n\n1. Preheat oven to 350F\n2. Mix dry ingredients\n3. Add chocolate chips\n4. Bake for 12 minutes\n\n## Source\n\n[https://example.com/recipe](https://example.com/recipe)\n'
+    expected = "# Chocolate Chip Cookies\n\n## Metadata\n\n- **Author:** Test Chef\n- **Servings:** 24 cookies\n- **Prep Time:** 15 minutes\n- **Cook Time:** 12 minutes\n- **Total Time:** 27 minutes\n- **Categories:** Dessert, Cookies\n\n## Ingredients\n\n- 2 cups flour\n- 1 cup sugar\n- 2 cups chocolate chips\n\n## Instructions\n\n1. Preheat oven to 350F\n2. Mix dry ingredients\n3. Add chocolate chips\n4. Bake for 12 minutes\n\n## Source\n\n[https://example.com/recipe](https://example.com/recipe)\n"
 
     assert output == expected
