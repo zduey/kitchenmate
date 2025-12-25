@@ -1,0 +1,186 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  # Detect which paths changed
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      library: ${{ steps.filter.outputs.library }}
+      app: ${{ steps.filter.outputs.app }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            library:
+              - 'packages/recipe_clipper/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+            app:
+              - 'apps/recipe_manager/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+
+  # Library CI - runs when library code changes
+  library-lint:
+    name: Library - Lint
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.library == 'true'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: |
+          uv sync --directory packages/recipe_clipper
+
+      - name: Run ruff format check
+        run: |
+          uv run --directory packages/recipe_clipper ruff format --check src/ tests/
+
+      - name: Run ruff lint
+        run: |
+          uv run --directory packages/recipe_clipper ruff check src/ tests/
+
+  library-test:
+    name: Library - Test
+    runs-on: ubuntu-latest
+    needs: [changes, library-lint]
+    if: needs.changes.outputs.library == 'true'
+
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          uv sync --directory packages/recipe_clipper
+
+      - name: Run tests
+        run: |
+          uv run --directory packages/recipe_clipper pytest -v --cov=recipe_clipper --cov-report=xml
+
+      - name: Upload coverage to Codecov
+        if: matrix.python-version == '3.14'
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./packages/recipe_clipper/coverage.xml
+          flags: library
+          name: library-coverage
+
+  # App CI - runs when app code changes
+  app-lint:
+    name: App - Lint
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: |
+          uv sync --directory apps/recipe_manager
+
+      - name: Run ruff format check
+        run: |
+          uv run --directory apps/recipe_manager ruff format --check src/
+
+      - name: Run ruff lint
+        run: |
+          uv run --directory apps/recipe_manager ruff check src/
+
+  app-test:
+    name: App - Test
+    runs-on: ubuntu-latest
+    needs: [changes, app-lint]
+    if: needs.changes.outputs.app == 'true'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: |
+          uv sync --directory apps/recipe_manager
+
+      - name: Run tests
+        run: |
+          uv run --directory apps/recipe_manager pytest -v
+
+  # Workspace-wide checks - always run
+  workspace-lint:
+    name: Workspace - Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: |
+          uv sync --all-extras
+
+      - name: Check workspace configuration
+        run: |
+          uv lock --check
