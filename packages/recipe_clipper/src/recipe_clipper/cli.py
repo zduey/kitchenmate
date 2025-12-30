@@ -7,6 +7,7 @@ from typing import Optional
 
 import typer
 from rich.console import Console
+from dotenv import load_dotenv
 
 from recipe_clipper.clipper import clip_recipe
 from recipe_clipper.formatters import (
@@ -15,6 +16,8 @@ from recipe_clipper.formatters import (
     format_recipe_markdown,
 )
 from recipe_clipper.exceptions import RecipeClipperError
+
+load_dotenv()
 
 
 app = typer.Typer(
@@ -54,6 +57,17 @@ def clip(
         "-t",
         help="HTTP request timeout in seconds",
     ),
+    api_key: Optional[str] = typer.Option(
+        None,
+        "--api-key",
+        envvar="ANTHROPIC_API_KEY",
+        help="Anthropic API key for LLM fallback (can also use ANTHROPIC_API_KEY env var)",
+    ),
+    use_llm_fallback: bool = typer.Option(
+        True,
+        "--use-llm-fallback/--no-llm-fallback",
+        help="Use LLM fallback if recipe-scrapers fails",
+    ),
 ):
     """
     Extract a recipe from a URL.
@@ -65,11 +79,15 @@ def clip(
         recipe-clipper clip https://example.com/recipe --format json --output recipe.json
 
         recipe-clipper clip https://example.com/recipe --format markdown --output recipe.md
+
+        recipe-clipper clip https://unsupported-site.com/recipe --api-key sk-ant-... --use-llm-fallback
     """
     try:
         # Show progress
         with console.status(f"[bold blue]Fetching recipe from {url}..."):
-            recipe = clip_recipe(url, timeout=timeout)
+            recipe = clip_recipe(
+                url, api_key=api_key, use_llm_fallback=use_llm_fallback, timeout=timeout
+            )
 
         # Format output
         if format == OutputFormat.json:
