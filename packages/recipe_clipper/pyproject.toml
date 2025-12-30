@@ -64,7 +64,10 @@ packages = ["src/recipe_clipper"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-addopts = "-ra -q"
+addopts = "-ra -q -m 'not integration'"
+markers = [
+    "integration: marks tests as integration tests that make real API calls (run with '-m integration')",
+]
 
 [tool.coverage.run]
 source = ["recipe_clipper"]
