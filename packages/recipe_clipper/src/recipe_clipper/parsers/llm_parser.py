@@ -64,4 +64,4 @@ Focus on the main recipe content and ignore ads, navigation, and other page elem
 
     recipe = message.parsed_output
 
-    return recipe.model_copy(update={'source_url': HttpUrl(url)})
+    return recipe.model_copy(update={"source_url": HttpUrl(url)})
