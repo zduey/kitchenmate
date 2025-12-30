@@ -9,6 +9,7 @@ from recipe_clipper.models import Recipe, Ingredient
 from recipe_clipper.exceptions import RecipeNotFoundError, NetworkError
 
 
+@pytest.mark.integration
 def test_clip_recipe_integration():
     """Integration test using a real recipe URL with network call."""
     # Use a real recipe from AllRecipes (a well-supported site)
@@ -40,6 +41,7 @@ def test_clip_recipe_integration():
     assert recipe.image is not None
 
 
+@pytest.mark.integration
 def test_clip_recipe_unsupported_site():
     """Test that unsupported sites raise RecipeNotFoundError."""
     # Use a URL from a site that recipe-scrapers doesn't support
@@ -51,6 +53,7 @@ def test_clip_recipe_unsupported_site():
     assert "does not support" in str(exc_info.value)
 
 
+@pytest.mark.integration
 def test_clip_recipe_invalid_url():
     """Test that invalid URLs raise NetworkError."""
     url = "https://this-domain-does-not-exist-12345.com/recipe"
@@ -69,6 +72,7 @@ def test_clip_recipe_llm_fallback_requires_api_key():
     assert "api_key must be provided" in str(exc_info.value)
 
 
+@pytest.mark.integration
 def test_clip_recipe_no_llm_fallback_without_api_key():
     """Test that use_llm_fallback=False works without api_key."""
     url = "http://smittenkitchen.com/2011/02/meatball-sub-with-caramelized-onions/"

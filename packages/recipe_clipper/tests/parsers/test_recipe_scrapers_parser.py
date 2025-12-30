@@ -132,6 +132,7 @@ def test_parse_with_recipe_scrapers_no_category():
     assert recipe.metadata.categories is None
 
 
+@pytest.mark.integration
 def test_parse_with_recipe_scrapers_integration():
     """Integration test using actual HTML with schema.org markup (no mocking)."""
     # Real HTML with schema.org Recipe markup
