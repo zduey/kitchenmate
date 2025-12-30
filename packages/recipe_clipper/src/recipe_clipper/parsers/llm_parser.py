@@ -1,6 +1,7 @@
 """LLM-based recipe parser using Claude API."""
 
 from anthropic import Anthropic
+from pydantic import HttpUrl
 
 from recipe_clipper.models import Recipe
 from recipe_clipper.exceptions import LLMError
@@ -61,6 +62,6 @@ Focus on the main recipe content and ignore ads, navigation, and other page elem
     except Exception as error:
         raise LLMError(f"Claude API call failed for {url}: {error}") from error
 
-    recipe = message.content
+    recipe = message.parsed_output
 
-    return recipe.model_copy(update={"source_url": url})
+    return recipe.model_copy(update={'source_url': HttpUrl(url)})
