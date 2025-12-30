@@ -6,7 +6,7 @@ import pytest
 from recipe_clipper.parsers.recipe_scrapers_parser import parse_with_recipe_scrapers
 from recipe_clipper.http import HttpResponse
 from recipe_clipper.models import Recipe
-from recipe_clipper.exceptions import RecipeNotFoundError, RecipeParsingError
+from recipe_clipper.exceptions import RecipeParsingError
 
 
 def test_parse_with_recipe_scrapers_unit():
@@ -63,11 +63,11 @@ def test_parse_with_recipe_scrapers_unit():
     assert recipe.metadata.categories == ["Dessert"]
 
     # Verify scrape_html was called correctly
-    mock_scrape.assert_called_once_with(response.content, response.url)
+    mock_scrape.assert_called_once_with(response.content, response.url, supported_only=False)
 
 
 def test_parse_with_recipe_scrapers_website_not_implemented():
-    """Test handling of unsupported websites."""
+    """Test handling of scraper creation failure."""
     from recipe_scrapers import WebsiteNotImplementedError
 
     response = HttpResponse(
@@ -79,10 +79,10 @@ def test_parse_with_recipe_scrapers_website_not_implemented():
     with patch("recipe_clipper.parsers.recipe_scrapers_parser.scrape_html") as mock_scrape:
         mock_scrape.side_effect = WebsiteNotImplementedError("Not supported")
 
-        with pytest.raises(RecipeNotFoundError) as exc_info:
+        with pytest.raises(RecipeParsingError) as exc_info:
             parse_with_recipe_scrapers(response)
 
-        assert "does not support" in str(exc_info.value)
+        assert "Failed to create scraper" in str(exc_info.value)
         assert "https://unsupported.com/recipe" in str(exc_info.value)
 
 

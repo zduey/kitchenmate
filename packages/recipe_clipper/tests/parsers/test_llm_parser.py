@@ -38,7 +38,7 @@ def test_parse_with_claude_success():
     )
 
     mock_message = Mock()
-    mock_message.content = mock_recipe
+    mock_message.parsed_output = mock_recipe
 
     with patch("recipe_clipper.parsers.llm_parser.Anthropic") as mock_anthropic_class:
         mock_client = Mock()
@@ -78,7 +78,7 @@ def test_parse_with_claude_custom_model():
     )
 
     mock_message = Mock()
-    mock_message.content = mock_recipe
+    mock_message.parsed_output = mock_recipe
 
     with patch("recipe_clipper.parsers.llm_parser.Anthropic") as mock_anthropic_class:
         mock_client = Mock()
@@ -138,7 +138,7 @@ def test_parse_with_claude_source_url_override():
     )
 
     mock_message = Mock()
-    mock_message.content = mock_recipe
+    mock_message.parsed_output = mock_recipe
 
     with patch("recipe_clipper.parsers.llm_parser.Anthropic") as mock_anthropic_class:
         mock_client = Mock()
