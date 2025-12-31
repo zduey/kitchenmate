@@ -6,7 +6,7 @@ import pytest
 
 from recipe_clipper.clipper import clip_recipe
 from recipe_clipper.models import Recipe, Ingredient
-from recipe_clipper.exceptions import RecipeNotFoundError, NetworkError
+from recipe_clipper.exceptions import RecipeNotFoundError, NetworkError, RecipeParsingError
 
 
 @pytest.mark.integration
@@ -99,7 +99,7 @@ def test_clip_recipe_llm_fallback_unit():
                 mock_fetch.return_value = Mock(
                     content="<html>test</html>", status_code=200, url=url
                 )
-                mock_recipe_scrapers.side_effect = RecipeNotFoundError("Site not supported")
+                mock_recipe_scrapers.side_effect = RecipeParsingError("Site not supported")
                 mock_claude.return_value = mock_recipe
 
                 recipe = clip_recipe(url, api_key=api_key, use_llm_fallback=True)

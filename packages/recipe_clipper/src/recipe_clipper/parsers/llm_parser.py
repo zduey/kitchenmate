@@ -38,24 +38,51 @@ def parse_with_claude(url: str, api_key: str, model: str = "claude-sonnet-4-5") 
 
     client = Anthropic(api_key=api_key)
 
-    prompt = f"""Please visit this URL and extract the recipe:
+    website_to_text_prompt = f"""Extract only the recipe from the following url and output as plain text with recipe title, ingredient list, instructions, and metadata (prep time, cook time, total time, categories). Match the original wording as closely as possible: {url}"""
 
-{url}
+    try:
+        message = client.messages.create(
+            model=model,
+            max_tokens=4096,
+            messages=[{"role": "user", "content": website_to_text_prompt}],
+            tools=[
+                {
+                    "type": "web_fetch_20250910",
+                    "name": "web_fetch",
+                    "max_uses": 1,
+                }
+            ],
+            extra_headers={"anthropic-beta": "web-fetch-2025-09-10"},
+        )
+    except Exception as error:
+        raise LLMError(f"Claude API call failed for {url}: {error}") from error
 
-Extract:
-- Recipe title
-- All ingredients with amounts, units, and preparation methods when available
-- Step-by-step instructions
-- Metadata: author, servings, prep time, cook time, total time, categories
-- Image URL if present
+    recipe_text = message.content[2].text
 
-Focus on the main recipe content and ignore ads, navigation, and other page elements."""
+    recipe_parsing_prompt = f"""Parse the following text-based recipe into a structured output with the following elements:
+    - title
+    - ingredients
+        - amount
+        - units
+        - preparation method, if available
+    - instructions
+    - metadata
+        - author
+        - number of servings
+        - prep time
+        - cook time
+        - total time
+        - categories
+    
+    Recipe:
 
+    {recipe_text}
+"""
     try:
         message = client.beta.messages.parse(
             model=model,
-            max_tokens=4000,
-            messages=[{"role": "user", "content": prompt}],
+            max_tokens=4096,
+            messages=[{"role": "user", "content": recipe_parsing_prompt}],
             output_format=Recipe,
             betas=["structured-outputs-2025-11-13"],
         )

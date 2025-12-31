@@ -37,12 +37,20 @@ def test_parse_with_claude_success():
         ),
     )
 
-    mock_message = Mock()
-    mock_message.parsed_output = mock_recipe
+    # Mock first API call (text extraction)
+    mock_text_message = Mock()
+    mock_text_content = Mock()
+    mock_text_content.text = "Recipe text content"
+    mock_text_message.content = [None, None, mock_text_content]
+
+    # Mock second API call (structured parsing)
+    mock_parse_message = Mock()
+    mock_parse_message.parsed_output = mock_recipe
 
     with patch("recipe_clipper.parsers.llm_parser.Anthropic") as mock_anthropic_class:
         mock_client = Mock()
-        mock_client.beta.messages.parse.return_value = mock_message
+        mock_client.messages.create.return_value = mock_text_message
+        mock_client.beta.messages.parse.return_value = mock_parse_message
         mock_anthropic_class.return_value = mock_client
 
         recipe = parse_with_claude(url, api_key)
@@ -57,6 +65,7 @@ def test_parse_with_claude_success():
     assert recipe.metadata.author == "Test Chef"
 
     mock_anthropic_class.assert_called_once_with(api_key=api_key)
+    mock_client.messages.create.assert_called_once()
     mock_client.beta.messages.parse.assert_called_once()
     call_args = mock_client.beta.messages.parse.call_args
     assert call_args.kwargs["model"] == "claude-sonnet-4-5"
@@ -77,12 +86,20 @@ def test_parse_with_claude_custom_model():
         source_url="https://example.com/recipe",
     )
 
-    mock_message = Mock()
-    mock_message.parsed_output = mock_recipe
+    # Mock first API call
+    mock_text_message = Mock()
+    mock_text_content = Mock()
+    mock_text_content.text = "Recipe text"
+    mock_text_message.content = [None, None, mock_text_content]
+
+    # Mock second API call
+    mock_parse_message = Mock()
+    mock_parse_message.parsed_output = mock_recipe
 
     with patch("recipe_clipper.parsers.llm_parser.Anthropic") as mock_anthropic_class:
         mock_client = Mock()
-        mock_client.beta.messages.parse.return_value = mock_message
+        mock_client.messages.create.return_value = mock_text_message
+        mock_client.beta.messages.parse.return_value = mock_parse_message
         mock_anthropic_class.return_value = mock_client
 
         recipe = parse_with_claude(url, api_key, model=model)
@@ -114,7 +131,7 @@ def test_parse_with_claude_api_error():
 
     with patch("recipe_clipper.parsers.llm_parser.Anthropic") as mock_anthropic_class:
         mock_client = Mock()
-        mock_client.beta.messages.parse.side_effect = Exception("API rate limit exceeded")
+        mock_client.messages.create.side_effect = Exception("API rate limit exceeded")
         mock_anthropic_class.return_value = mock_client
 
         with pytest.raises(LLMError) as exc_info:
@@ -137,12 +154,20 @@ def test_parse_with_claude_source_url_override():
         source_url="https://different.com/url",
     )
 
-    mock_message = Mock()
-    mock_message.parsed_output = mock_recipe
+    # Mock first API call
+    mock_text_message = Mock()
+    mock_text_content = Mock()
+    mock_text_content.text = "Recipe text"
+    mock_text_message.content = [None, None, mock_text_content]
+
+    # Mock second API call
+    mock_parse_message = Mock()
+    mock_parse_message.parsed_output = mock_recipe
 
     with patch("recipe_clipper.parsers.llm_parser.Anthropic") as mock_anthropic_class:
         mock_client = Mock()
-        mock_client.beta.messages.parse.return_value = mock_message
+        mock_client.messages.create.return_value = mock_text_message
+        mock_client.beta.messages.parse.return_value = mock_parse_message
         mock_anthropic_class.return_value = mock_client
 
         recipe = parse_with_claude(url, api_key)

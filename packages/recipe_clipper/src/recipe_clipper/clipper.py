@@ -3,7 +3,7 @@
 from recipe_clipper.models import Recipe
 from recipe_clipper.http import fetch_url
 from recipe_clipper.parsers.recipe_scrapers_parser import parse_with_recipe_scrapers
-from recipe_clipper.exceptions import RecipeNotFoundError
+from recipe_clipper.exceptions import RecipeParsingError
 
 
 def clip_recipe(
@@ -41,7 +41,7 @@ def clip_recipe(
 
     try:
         return parse_with_recipe_scrapers(response)
-    except RecipeNotFoundError:
+    except RecipeParsingError:
         if use_llm_fallback:
             from recipe_clipper.parsers.llm_parser import parse_with_claude
 
