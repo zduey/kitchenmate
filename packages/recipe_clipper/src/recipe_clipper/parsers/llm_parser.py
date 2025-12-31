@@ -31,6 +31,7 @@ def parse_with_claude(url: str, api_key: str, model: str = "claude-sonnet-4-5") 
         ValueError: If an unsupported model is specified
         LLMError: If Claude API call fails
     """
+    # TODO: Condense into a single API call
     if model not in SUPPORTED_MODELS:
         raise ValueError(
             f"Unsupported model: {model}. Supported models: {', '.join(sorted(SUPPORTED_MODELS))}"
@@ -65,6 +66,7 @@ def parse_with_claude(url: str, api_key: str, model: str = "claude-sonnet-4-5") 
         - amount
         - units
         - preparation method, if available
+        - original wording as the display_text
     - instructions
     - metadata
         - author

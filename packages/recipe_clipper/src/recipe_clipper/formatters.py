@@ -33,7 +33,10 @@ def format_recipe_text(recipe: Recipe) -> str:
     lines.append("\nINGREDIENTS")
     lines.append("-" * 80)
     for ingredient in recipe.ingredients:
-        lines.append(f"  • {ingredient.name}")
+        display_text = ingredient.display_text
+        if ingredient.display_text is None:
+            display_text = f"{ingredient.amount} {ingredient.name}, {ingredient.preparation}"
+        lines.append(f"  • {display_text}")
 
     # Instructions
     lines.append("\nINSTRUCTIONS")
@@ -84,7 +87,10 @@ def format_recipe_markdown(recipe: Recipe) -> str:
     lines.append("## Ingredients")
     lines.append("")
     for ingredient in recipe.ingredients:
-        lines.append(f"- {ingredient.name}")
+        display_text = ingredient.display_text
+        if ingredient.display_text is None:
+            display_text = f"{ingredient.amount} {ingredient.name}, {ingredient.preparation}"
+        lines.append(f"- {display_text}")
     lines.append("")
 
     # Instructions

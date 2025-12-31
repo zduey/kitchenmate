@@ -19,6 +19,7 @@ class Ingredient(ImmutableBaseModel):
     preparation: Optional[str] = Field(
         None, description="Preparation method (e.g., 'chopped', 'diced', 'minced')"
     )
+    display_text: Optional[str] = Field(None, description="How the ingredient should be displayed")
 
 
 class RecipeMetadata(ImmutableBaseModel):
