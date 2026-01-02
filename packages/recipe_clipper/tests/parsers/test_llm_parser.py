@@ -9,6 +9,7 @@ import pytest
 from recipe_clipper.parsers.llm_parser import (
     parse_with_claude,
     parse_recipe_from_image,
+    parse_recipe_from_document,
     SUPPORTED_MODELS,
 )
 from recipe_clipper.models import Recipe, Ingredient, RecipeMetadata
@@ -380,3 +381,290 @@ def test_parse_recipe_from_image_different_formats():
         finally:
             # Clean up temporary file
             Path(image_path).unlink()
+
+
+def test_parse_recipe_from_document_pdf_success():
+    """Test successful recipe extraction from a PDF document."""
+    api_key = "sk-ant-test-key"
+
+    mock_recipe = Recipe(
+        title="Chocolate Cake",
+        ingredients=[
+            Ingredient(name="2 cups flour", amount="2", unit="cups"),
+            Ingredient(name="1.5 cups sugar", amount="1.5", unit="cups"),
+            Ingredient(name="3/4 cup cocoa powder", amount="3/4", unit="cup"),
+        ],
+        instructions=[
+            "Preheat oven to 350F",
+            "Mix dry ingredients in a bowl",
+            "Add wet ingredients and mix until smooth",
+            "Pour into greased pan",
+            "Bake for 30-35 minutes",
+        ],
+        source_url="file:///tmp/recipe.pdf",
+        metadata=RecipeMetadata(
+            author="Betty Crocker",
+            servings="12 servings",
+            prep_time=15,
+            cook_time=35,
+            total_time=50,
+        ),
+    )
+
+    mock_message = Mock()
+    mock_message.parsed_output = mock_recipe
+
+    # Create a temporary PDF file
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp_file:
+        tmp_file.write(b"fake pdf data")
+        doc_path = tmp_file.name
+
+    try:
+        with patch("recipe_clipper.parsers.llm_parser.Anthropic") as mock_anthropic_class:
+            with patch("builtins.open", mock_open(read_data=b"fake pdf data")):
+                mock_client = Mock()
+                mock_client.beta.messages.parse.return_value = mock_message
+                mock_anthropic_class.return_value = mock_client
+
+                recipe = parse_recipe_from_document(doc_path, api_key)
+
+        assert isinstance(recipe, Recipe)
+        assert recipe.title == "Chocolate Cake"
+        assert len(recipe.ingredients) == 3
+        assert len(recipe.instructions) == 5
+        assert recipe.source_url.scheme == "file"
+
+        # Verify API call
+        mock_anthropic_class.assert_called_once_with(api_key=api_key)
+        mock_client.beta.messages.parse.assert_called_once()
+        call_args = mock_client.beta.messages.parse.call_args
+
+        # Check that the message contains a document
+        messages = call_args.kwargs["messages"]
+        assert len(messages) == 1
+        assert messages[0]["role"] == "user"
+        content = messages[0]["content"]
+        assert len(content) == 2
+        assert content[0]["type"] == "document"
+        assert content[0]["source"]["type"] == "base64"
+        assert content[0]["source"]["media_type"] == "application/pdf"
+        assert content[1]["type"] == "text"
+
+        # Verify structured outputs and PDF beta
+        assert call_args.kwargs["model"] == "claude-sonnet-4-5"
+        assert call_args.kwargs["output_format"] == Recipe
+        assert "structured-outputs-2025-11-13" in call_args.kwargs["betas"]
+        assert "pdfs-2024-09-25" in call_args.kwargs["betas"]
+    finally:
+        # Clean up temporary file
+        Path(doc_path).unlink()
+
+
+def test_parse_recipe_from_document_txt_success():
+    """Test successful recipe extraction from a text file."""
+    api_key = "sk-ant-test-key"
+
+    mock_recipe = Recipe(
+        title="Simple Pasta",
+        ingredients=[
+            Ingredient(name="1 lb pasta"),
+            Ingredient(name="2 cups tomato sauce"),
+        ],
+        instructions=["Boil pasta", "Heat sauce", "Combine and serve"],
+        source_url="file:///tmp/recipe.txt",
+    )
+
+    mock_message = Mock()
+    mock_message.parsed_output = mock_recipe
+
+    # Create a temporary text file
+    with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as tmp_file:
+        tmp_file.write(b"fake text data")
+        doc_path = tmp_file.name
+
+    try:
+        with patch("recipe_clipper.parsers.llm_parser.Anthropic") as mock_anthropic_class:
+            with patch("builtins.open", mock_open(read_data=b"fake text data")):
+                mock_client = Mock()
+                mock_client.beta.messages.parse.return_value = mock_message
+                mock_anthropic_class.return_value = mock_client
+
+                recipe = parse_recipe_from_document(doc_path, api_key)
+
+        assert isinstance(recipe, Recipe)
+        assert recipe.title == "Simple Pasta"
+
+        # Verify API call
+        call_args = mock_client.beta.messages.parse.call_args
+        messages = call_args.kwargs["messages"]
+        content = messages[0]["content"]
+        assert content[0]["source"]["media_type"] == "text/plain"
+        # Text files should not include PDF beta
+        assert "pdfs-2024-09-25" not in call_args.kwargs["betas"]
+    finally:
+        # Clean up temporary file
+        Path(doc_path).unlink()
+
+
+def test_parse_recipe_from_document_markdown_success():
+    """Test successful recipe extraction from a markdown file."""
+    api_key = "sk-ant-test-key"
+
+    mock_recipe = Recipe(
+        title="Markdown Recipe",
+        ingredients=[Ingredient(name="ingredient")],
+        instructions=["step 1"],
+        source_url="file:///tmp/recipe.md",
+    )
+
+    mock_message = Mock()
+    mock_message.parsed_output = mock_recipe
+
+    # Create a temporary markdown file
+    with tempfile.NamedTemporaryFile(suffix=".md", delete=False) as tmp_file:
+        tmp_file.write(b"# Recipe\n\nIngredients:\n- ingredient\n\nInstructions:\n1. step 1")
+        doc_path = tmp_file.name
+
+    try:
+        with patch("recipe_clipper.parsers.llm_parser.Anthropic") as mock_anthropic_class:
+            with patch("builtins.open", mock_open(read_data=b"fake markdown data")):
+                mock_client = Mock()
+                mock_client.beta.messages.parse.return_value = mock_message
+                mock_anthropic_class.return_value = mock_client
+
+                parse_recipe_from_document(doc_path, api_key)
+
+        # Verify markdown media type
+        call_args = mock_client.beta.messages.parse.call_args
+        messages = call_args.kwargs["messages"]
+        content = messages[0]["content"]
+        assert content[0]["source"]["media_type"] == "text/markdown"
+    finally:
+        # Clean up temporary file
+        Path(doc_path).unlink()
+
+
+def test_parse_recipe_from_document_docx_success():
+    """Test successful recipe extraction from a Word document."""
+    api_key = "sk-ant-test-key"
+
+    mock_recipe = Recipe(
+        title="Word Recipe",
+        ingredients=[Ingredient(name="ingredient")],
+        instructions=["step 1"],
+        source_url="file:///tmp/recipe.docx",
+    )
+
+    mock_message = Mock()
+    mock_message.parsed_output = mock_recipe
+
+    # Create a temporary docx file
+    with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as tmp_file:
+        tmp_file.write(b"fake docx data")
+        doc_path = tmp_file.name
+
+    try:
+        with patch("recipe_clipper.parsers.llm_parser.Anthropic") as mock_anthropic_class:
+            with patch("builtins.open", mock_open(read_data=b"fake docx data")):
+                mock_client = Mock()
+                mock_client.beta.messages.parse.return_value = mock_message
+                mock_anthropic_class.return_value = mock_client
+
+                parse_recipe_from_document(doc_path, api_key)
+
+        # Verify docx media type
+        call_args = mock_client.beta.messages.parse.call_args
+        messages = call_args.kwargs["messages"]
+        content = messages[0]["content"]
+        assert (
+            content[0]["source"]["media_type"]
+            == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
+    finally:
+        # Clean up temporary file
+        Path(doc_path).unlink()
+
+
+def test_parse_recipe_from_document_file_not_found():
+    """Test error when document file doesn't exist."""
+    api_key = "sk-ant-test-key"
+    doc_path = "/nonexistent/path/to/document.pdf"
+
+    with pytest.raises(FileNotFoundError) as exc_info:
+        parse_recipe_from_document(doc_path, api_key)
+
+    assert "Document file not found" in str(exc_info.value)
+    assert doc_path in str(exc_info.value)
+
+
+def test_parse_recipe_from_document_unsupported_format():
+    """Test error when document format is not supported."""
+    api_key = "sk-ant-test-key"
+
+    # Create a temporary file with unsupported extension
+    with tempfile.NamedTemporaryFile(suffix=".doc", delete=False) as tmp_file:
+        tmp_file.write(b"fake document data")
+        doc_path = tmp_file.name
+
+    try:
+        with pytest.raises(ValueError) as exc_info:
+            parse_recipe_from_document(doc_path, api_key)
+
+        assert "Unsupported document format" in str(exc_info.value)
+        assert ".doc" in str(exc_info.value)
+        assert ".pdf" in str(exc_info.value)
+        assert ".txt" in str(exc_info.value)
+    finally:
+        # Clean up temporary file
+        Path(doc_path).unlink()
+
+
+def test_parse_recipe_from_document_unsupported_model():
+    """Test error when using unsupported model."""
+    api_key = "sk-ant-test-key"
+    invalid_model = "gpt-4"
+
+    # Create a temporary PDF file
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp_file:
+        tmp_file.write(b"fake pdf data")
+        doc_path = tmp_file.name
+
+    try:
+        with pytest.raises(ValueError) as exc_info:
+            parse_recipe_from_document(doc_path, api_key, model=invalid_model)
+
+        assert "Unsupported model" in str(exc_info.value)
+        assert invalid_model in str(exc_info.value)
+        assert all(model in str(exc_info.value) for model in SUPPORTED_MODELS)
+    finally:
+        # Clean up temporary file
+        Path(doc_path).unlink()
+
+
+def test_parse_recipe_from_document_api_error():
+    """Test handling of API errors."""
+    api_key = "sk-ant-test-key"
+
+    # Create a temporary PDF file
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp_file:
+        tmp_file.write(b"fake pdf data")
+        doc_path = tmp_file.name
+
+    try:
+        with patch("recipe_clipper.parsers.llm_parser.Anthropic") as mock_anthropic_class:
+            with patch("builtins.open", mock_open(read_data=b"fake pdf data")):
+                mock_client = Mock()
+                mock_client.beta.messages.parse.side_effect = Exception(
+                    "API rate limit exceeded"
+                )
+                mock_anthropic_class.return_value = mock_client
+
+                with pytest.raises(LLMError) as exc_info:
+                    parse_recipe_from_document(doc_path, api_key)
+
+                assert "Claude API call failed for document" in str(exc_info.value)
+                assert doc_path in str(exc_info.value)
+                assert "API rate limit exceeded" in str(exc_info.value)
+    finally:
+        # Clean up temporary file
+        Path(doc_path).unlink()

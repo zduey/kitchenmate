@@ -189,3 +189,115 @@ def parse_recipe_from_image(
     recipe = message.parsed_output
     source_url = image_file.absolute().as_uri()
     return recipe.model_copy(update={"source_url": AnyUrl(source_url)})
+
+
+def parse_recipe_from_document(
+    document_path: str | Path, api_key: str, model: str = "claude-sonnet-4-5"
+) -> Recipe:
+    """Parse a recipe from a document using Claude's file API.
+
+    Supports PDF, Word documents (.docx), and text formats (.txt, .md).
+    Uses Claude's native document handling capabilities.
+
+    Args:
+        document_path: Path to the document file (pdf, docx, txt, md)
+        api_key: Anthropic API key
+        model: Claude model to use (default: claude-sonnet-4-5)
+
+    Returns:
+        Parsed Recipe object
+
+    Raises:
+        ValueError: If an unsupported model or document format is specified
+        FileNotFoundError: If the document file doesn't exist
+        LLMError: If Claude API call fails
+    """
+    if model not in SUPPORTED_MODELS:
+        raise ValueError(
+            f"Unsupported model: {model}. Supported models: {', '.join(sorted(SUPPORTED_MODELS))}"
+        )
+
+    # Convert to Path object and validate
+    doc_file = Path(document_path)
+    if not doc_file.exists():
+        raise FileNotFoundError(f"Document file not found: {document_path}")
+
+    # Determine document type and media type from extension
+    extension = doc_file.suffix.lower()
+    media_type_map = {
+        ".pdf": "application/pdf",
+        ".txt": "text/plain",
+        ".md": "text/markdown",
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    }
+
+    if extension not in media_type_map:
+        raise ValueError(
+            f"Unsupported document format: {extension}. "
+            f"Supported formats: {', '.join(media_type_map.keys())}"
+        )
+
+    media_type = media_type_map[extension]
+
+    # Read and encode document
+    with open(doc_file, "rb") as f:
+        document_data = base64.standard_b64encode(f.read()).decode("utf-8")
+
+    client = Anthropic(api_key=api_key)
+
+    recipe_from_document_prompt = """Extract the recipe from this document into a structured output with the following elements:
+    - title
+    - ingredients
+        - amount
+        - units
+        - preparation method, if available
+        - original wording as the display_text
+    - instructions
+    - metadata
+        - author (if visible)
+        - number of servings (if visible)
+        - prep time (if visible)
+        - cook time (if visible)
+        - total time (if visible)
+        - categories (if visible)
+
+    If any information is not present in the document, omit it from the output.
+    Extract the text exactly as it appears, preserving the original wording.
+    """
+
+    # Determine which beta features to use based on file type
+    betas = ["structured-outputs-2025-11-13"]
+    if extension == ".pdf":
+        betas.append("pdfs-2024-09-25")
+
+    try:
+        message = client.beta.messages.parse(
+            model=model,
+            max_tokens=4096,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "document",
+                            "source": {
+                                "type": "base64",
+                                "media_type": media_type,
+                                "data": document_data,
+                            },
+                        },
+                        {"type": "text", "text": recipe_from_document_prompt},
+                    ],
+                }
+            ],
+            output_format=Recipe,
+            betas=betas,
+        )
+    except Exception as error:
+        raise LLMError(
+            f"Claude API call failed for document {document_path}: {error}"
+        ) from error
+
+    recipe = message.parsed_output
+    source_url = doc_file.absolute().as_uri()
+    return recipe.model_copy(update={"source_url": AnyUrl(source_url)})

@@ -10,7 +10,10 @@ from rich.console import Console
 from dotenv import load_dotenv
 
 from recipe_clipper.clipper import clip_recipe
-from recipe_clipper.parsers.llm_parser import parse_recipe_from_image
+from recipe_clipper.parsers.llm_parser import (
+    parse_recipe_from_image,
+    parse_recipe_from_document,
+)
 from recipe_clipper.formatters import (
     format_recipe_text,
     format_recipe_json,
@@ -173,6 +176,94 @@ def clip_image(
         # Show progress
         with console.status(f"[bold blue]Extracting recipe from {image_path}..."):
             recipe = parse_recipe_from_image(image_path, api_key, model=model)
+
+        # Format output
+        if format == OutputFormat.json:
+            output_text = format_recipe_json(recipe)
+        elif format == OutputFormat.markdown:
+            output_text = format_recipe_markdown(recipe)
+        else:
+            output_text = format_recipe_text(recipe)
+
+        # Write to file or print to stdout
+        if output:
+            output.write_text(output_text)
+            console.print(f"[green]✓[/green] Recipe saved to {output}")
+        else:
+            console.print(output_text)
+
+    except RecipeClipperError as e:
+        console.print(f"[red]Error:[/red] {e}", file=sys.stderr)
+        raise typer.Exit(code=1)
+    except Exception as e:
+        console.print(f"[red]Unexpected error:[/red] {e}", file=sys.stderr)
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def clip_document(
+    document_path: Path = typer.Argument(..., help="Path to the recipe document file"),
+    format: OutputFormat = typer.Option(
+        OutputFormat.text,
+        "--format",
+        "-f",
+        help="Output format (text, json, or markdown)",
+    ),
+    output: Optional[Path] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output file path (prints to stdout if not specified)",
+    ),
+    api_key: Optional[str] = typer.Option(
+        None,
+        "--api-key",
+        envvar="ANTHROPIC_API_KEY",
+        help="Anthropic API key (required, can also use ANTHROPIC_API_KEY env var)",
+    ),
+    model: str = typer.Option(
+        "claude-sonnet-4-5",
+        "--model",
+        "-m",
+        help="Claude model to use",
+    ),
+):
+    """
+    Extract a recipe from a document (PDF, Word, text, markdown).
+
+    This command uses Claude's document API to extract recipe text from various
+    document formats. Requires an Anthropic API key.
+
+    Supported formats: .pdf, .docx, .txt, .md
+
+    Examples:
+
+        recipe-clipper clip-document recipe.pdf
+
+        recipe-clipper clip-document cookbook.docx --format json --output recipe.json
+
+        recipe-clipper clip-document recipe.txt --api-key sk-ant-... --format markdown
+    """
+    # Validate API key is provided
+    if not api_key:
+        console.print(
+            "[red]Error:[/red] API key is required for document parsing. "
+            "Set ANTHROPIC_API_KEY environment variable or use --api-key option.",
+            file=sys.stderr,
+        )
+        raise typer.Exit(code=1)
+
+    # Validate document file exists
+    if not document_path.exists():
+        console.print(
+            f"[red]Error:[/red] Document file not found: {document_path}", file=sys.stderr
+        )
+        raise typer.Exit(code=1)
+
+    try:
+        # Show progress
+        with console.status(f"[bold blue]Extracting recipe from {document_path}..."):
+            recipe = parse_recipe_from_document(document_path, api_key, model=model)
 
         # Format output
         if format == OutputFormat.json:
