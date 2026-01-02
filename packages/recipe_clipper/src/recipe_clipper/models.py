@@ -1,7 +1,7 @@
 """Data models for recipe clipper."""
 
 from typing import Optional
-from pydantic import BaseModel, Field, HttpUrl, ConfigDict
+from pydantic import BaseModel, Field, HttpUrl, AnyUrl, ConfigDict
 
 
 class ImmutableBaseModel(BaseModel):
@@ -39,6 +39,6 @@ class Recipe(ImmutableBaseModel):
     title: str = Field(..., description="Recipe title")
     ingredients: list[Ingredient] = Field(default_factory=list, description="List of ingredients")
     instructions: list[str] = Field(default_factory=list, description="Step-by-step instructions")
-    source_url: Optional[HttpUrl] = Field(None, description="Source URL")
+    source_url: Optional[AnyUrl] = Field(None, description="Source URL (http/https/file)")
     image: Optional[HttpUrl] = Field(None, description="Recipe image URL")
     metadata: Optional[RecipeMetadata] = Field(None, description="Recipe metadata")

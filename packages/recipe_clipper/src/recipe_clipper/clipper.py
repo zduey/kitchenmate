@@ -37,9 +37,8 @@ def clip_recipe(
     if use_llm_fallback and not api_key:
         raise ValueError("api_key must be provided when use_llm_fallback is True")
 
-    response = fetch_url(url, timeout=timeout)
-
     try:
+        response = fetch_url(url, timeout=timeout)
         return parse_with_recipe_scrapers(response)
     except RecipeParsingError:
         if use_llm_fallback:
