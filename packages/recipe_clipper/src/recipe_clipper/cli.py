@@ -40,6 +40,68 @@ class OutputFormat(str, Enum):
     markdown = "markdown"
 
 
+# Helper functions for common CLI operations
+
+
+def _format_recipe(recipe, format: OutputFormat) -> str:
+    """Format recipe based on output format."""
+    if format == OutputFormat.json:
+        return format_recipe_json(recipe)
+    elif format == OutputFormat.markdown:
+        return format_recipe_markdown(recipe)
+    else:
+        return format_recipe_text(recipe)
+
+
+def _write_output(output_text: str, output: Optional[Path]) -> None:
+    """Write output to file or stdout."""
+    if output:
+        output.write_text(output_text)
+        console.print(f"[green]✓[/green] Recipe saved to {output}")
+    else:
+        console.print(output_text)
+
+
+def _handle_recipe_extraction(
+    extract_func, source_description: str, format: OutputFormat, output: Optional[Path]
+) -> None:
+    """Common handler for all recipe extraction commands."""
+    try:
+        with console.status(f"[bold blue]{source_description}..."):
+            recipe = extract_func()
+
+        output_text = _format_recipe(recipe, format)
+        _write_output(output_text, output)
+
+    except RecipeClipperError as e:
+        console.print(f"[red]Error:[/red] {e}", file=sys.stderr)
+        raise typer.Exit(code=1)
+    except Exception as e:
+        console.print(f"[red]Unexpected error:[/red] {e}", file=sys.stderr)
+        raise typer.Exit(code=1)
+
+
+def _validate_file_exists(path: Path, file_type: str) -> None:
+    """Validate that a file exists."""
+    if not path.exists():
+        console.print(
+            f"[red]Error:[/red] {file_type} file not found: {path}", file=sys.stderr
+        )
+        raise typer.Exit(code=1)
+
+
+def _require_api_key(api_key: Optional[str], operation: str) -> str:
+    """Ensure API key is provided, exit if not."""
+    if not api_key:
+        console.print(
+            f"[red]Error:[/red] API key is required for {operation}. "
+            "Set ANTHROPIC_API_KEY environment variable or use --api-key option.",
+            file=sys.stderr,
+        )
+        raise typer.Exit(code=1)
+    return api_key
+
+
 @app.command()
 def clip_webpage(
     url: str = typer.Argument(..., help="URL of the recipe to extract"),
@@ -86,34 +148,14 @@ def clip_webpage(
 
         recipe-clipper clip-webpage https://unsupported-site.com/recipe --api-key sk-ant-... --use-llm-fallback
     """
-    try:
-        # Show progress
-        with console.status(f"[bold blue]Fetching recipe from {url}..."):
-            recipe = clip_recipe(
-                url, api_key=api_key, use_llm_fallback=use_llm_fallback, timeout=timeout
-            )
-
-        # Format output
-        if format == OutputFormat.json:
-            output_text = format_recipe_json(recipe)
-        elif format == OutputFormat.markdown:
-            output_text = format_recipe_markdown(recipe)
-        else:
-            output_text = format_recipe_text(recipe)
-
-        # Write to file or print to stdout
-        if output:
-            output.write_text(output_text)
-            console.print(f"[green]✓[/green] Recipe saved to {output}")
-        else:
-            console.print(output_text)
-
-    except RecipeClipperError as e:
-        console.print(f"[red]Error:[/red] {e}", file=sys.stderr)
-        raise typer.Exit(code=1)
-    except Exception as e:
-        console.print(f"[red]Unexpected error:[/red] {e}", file=sys.stderr)
-        raise typer.Exit(code=1)
+    _handle_recipe_extraction(
+        extract_func=lambda: clip_recipe(
+            url, api_key=api_key, use_llm_fallback=use_llm_fallback, timeout=timeout
+        ),
+        source_description=f"Fetching recipe from {url}",
+        format=format,
+        output=output,
+    )
 
 
 @app.command()
@@ -158,46 +200,15 @@ def clip_image(
 
         recipe-clipper clip-image recipe-card.jpg --api-key sk-ant-... --format markdown
     """
-    # Validate API key is provided
-    if not api_key:
-        console.print(
-            "[red]Error:[/red] API key is required for image parsing. "
-            "Set ANTHROPIC_API_KEY environment variable or use --api-key option.",
-            file=sys.stderr,
-        )
-        raise typer.Exit(code=1)
+    api_key = _require_api_key(api_key, "image parsing")
+    _validate_file_exists(image_path, "Image")
 
-    # Validate image file exists
-    if not image_path.exists():
-        console.print(f"[red]Error:[/red] Image file not found: {image_path}", file=sys.stderr)
-        raise typer.Exit(code=1)
-
-    try:
-        # Show progress
-        with console.status(f"[bold blue]Extracting recipe from {image_path}..."):
-            recipe = parse_recipe_from_image(image_path, api_key, model=model)
-
-        # Format output
-        if format == OutputFormat.json:
-            output_text = format_recipe_json(recipe)
-        elif format == OutputFormat.markdown:
-            output_text = format_recipe_markdown(recipe)
-        else:
-            output_text = format_recipe_text(recipe)
-
-        # Write to file or print to stdout
-        if output:
-            output.write_text(output_text)
-            console.print(f"[green]✓[/green] Recipe saved to {output}")
-        else:
-            console.print(output_text)
-
-    except RecipeClipperError as e:
-        console.print(f"[red]Error:[/red] {e}", file=sys.stderr)
-        raise typer.Exit(code=1)
-    except Exception as e:
-        console.print(f"[red]Unexpected error:[/red] {e}", file=sys.stderr)
-        raise typer.Exit(code=1)
+    _handle_recipe_extraction(
+        extract_func=lambda: parse_recipe_from_image(image_path, api_key, model=model),
+        source_description=f"Extracting recipe from {image_path}",
+        format=format,
+        output=output,
+    )
 
 
 @app.command()
@@ -244,48 +255,15 @@ def clip_document(
 
         recipe-clipper clip-document recipe.txt --api-key sk-ant-... --format markdown
     """
-    # Validate API key is provided
-    if not api_key:
-        console.print(
-            "[red]Error:[/red] API key is required for document parsing. "
-            "Set ANTHROPIC_API_KEY environment variable or use --api-key option.",
-            file=sys.stderr,
-        )
-        raise typer.Exit(code=1)
+    api_key = _require_api_key(api_key, "document parsing")
+    _validate_file_exists(document_path, "Document")
 
-    # Validate document file exists
-    if not document_path.exists():
-        console.print(
-            f"[red]Error:[/red] Document file not found: {document_path}", file=sys.stderr
-        )
-        raise typer.Exit(code=1)
-
-    try:
-        # Show progress
-        with console.status(f"[bold blue]Extracting recipe from {document_path}..."):
-            recipe = parse_recipe_from_document(document_path, api_key, model=model)
-
-        # Format output
-        if format == OutputFormat.json:
-            output_text = format_recipe_json(recipe)
-        elif format == OutputFormat.markdown:
-            output_text = format_recipe_markdown(recipe)
-        else:
-            output_text = format_recipe_text(recipe)
-
-        # Write to file or print to stdout
-        if output:
-            output.write_text(output_text)
-            console.print(f"[green]✓[/green] Recipe saved to {output}")
-        else:
-            console.print(output_text)
-
-    except RecipeClipperError as e:
-        console.print(f"[red]Error:[/red] {e}", file=sys.stderr)
-        raise typer.Exit(code=1)
-    except Exception as e:
-        console.print(f"[red]Unexpected error:[/red] {e}", file=sys.stderr)
-        raise typer.Exit(code=1)
+    _handle_recipe_extraction(
+        extract_func=lambda: parse_recipe_from_document(document_path, api_key, model=model),
+        source_description=f"Extracting recipe from {document_path}",
+        format=format,
+        output=output,
+    )
 
 
 if __name__ == "__main__":

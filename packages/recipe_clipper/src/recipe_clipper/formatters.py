@@ -1,6 +1,47 @@
 """Recipe output formatters."""
 
-from recipe_clipper.models import Recipe
+from recipe_clipper.models import Recipe, RecipeMetadata, Ingredient
+
+
+# Helper functions for formatting
+
+
+def _format_ingredient(ingredient: Ingredient) -> str:
+    """Get ingredient display text."""
+    return ingredient.display_text or ingredient.name
+
+
+def _format_metadata_lines(metadata: RecipeMetadata, style: str = "text") -> list[str]:
+    """Format all metadata fields as lines.
+
+    Args:
+        metadata: Recipe metadata to format
+        style: Format style ("text" or "markdown")
+
+    Returns:
+        List of formatted metadata lines
+    """
+    if not metadata:
+        return []
+
+    lines = []
+    field_map = {
+        "Author": metadata.author,
+        "Servings": metadata.servings,
+        "Prep Time": f"{metadata.prep_time} minutes" if metadata.prep_time else None,
+        "Cook Time": f"{metadata.cook_time} minutes" if metadata.cook_time else None,
+        "Total Time": f"{metadata.total_time} minutes" if metadata.total_time else None,
+        "Categories": ", ".join(metadata.categories) if metadata.categories else None,
+    }
+
+    for key, value in field_map.items():
+        if value:
+            if style == "markdown":
+                lines.append(f"- **{key}:** {value}")
+            else:
+                lines.append(f"{key}: {value}")
+
+    return lines
 
 
 def format_recipe_text(recipe: Recipe) -> str:
@@ -13,29 +54,17 @@ def format_recipe_text(recipe: Recipe) -> str:
     lines.append("=" * 80)
 
     # Metadata
-    if recipe.metadata:
+    metadata_lines = _format_metadata_lines(recipe.metadata, style="text")
+    if metadata_lines:
         lines.append("\nMETADATA")
         lines.append("-" * 80)
-        if recipe.metadata.author:
-            lines.append(f"Author: {recipe.metadata.author}")
-        if recipe.metadata.servings:
-            lines.append(f"Servings: {recipe.metadata.servings}")
-        if recipe.metadata.prep_time:
-            lines.append(f"Prep Time: {recipe.metadata.prep_time} minutes")
-        if recipe.metadata.cook_time:
-            lines.append(f"Cook Time: {recipe.metadata.cook_time} minutes")
-        if recipe.metadata.total_time:
-            lines.append(f"Total Time: {recipe.metadata.total_time} minutes")
-        if recipe.metadata.categories:
-            lines.append(f"Categories: {', '.join(recipe.metadata.categories)}")
+        lines.extend(metadata_lines)
 
     # Ingredients
     lines.append("\nINGREDIENTS")
     lines.append("-" * 80)
     for ingredient in recipe.ingredients:
-        lines.append(
-            f"  • {ingredient.display_text if ingredient.display_text is not None else ingredient.name}"
-        )
+        lines.append(f"  • {_format_ingredient(ingredient)}")
 
     # Instructions
     lines.append("\nINSTRUCTIONS")
@@ -65,30 +94,18 @@ def format_recipe_markdown(recipe: Recipe) -> str:
     lines.append("")
 
     # Metadata
-    if recipe.metadata:
+    metadata_lines = _format_metadata_lines(recipe.metadata, style="markdown")
+    if metadata_lines:
         lines.append("## Metadata")
         lines.append("")
-        if recipe.metadata.author:
-            lines.append(f"- **Author:** {recipe.metadata.author}")
-        if recipe.metadata.servings:
-            lines.append(f"- **Servings:** {recipe.metadata.servings}")
-        if recipe.metadata.prep_time:
-            lines.append(f"- **Prep Time:** {recipe.metadata.prep_time} minutes")
-        if recipe.metadata.cook_time:
-            lines.append(f"- **Cook Time:** {recipe.metadata.cook_time} minutes")
-        if recipe.metadata.total_time:
-            lines.append(f"- **Total Time:** {recipe.metadata.total_time} minutes")
-        if recipe.metadata.categories:
-            lines.append(f"- **Categories:** {', '.join(recipe.metadata.categories)}")
+        lines.extend(metadata_lines)
         lines.append("")
 
     # Ingredients
     lines.append("## Ingredients")
     lines.append("")
     for ingredient in recipe.ingredients:
-        lines.append(
-            f"- {ingredient.display_text if ingredient.display_text is not None else ingredient.name}"
-        )
+        lines.append(f"- {_format_ingredient(ingredient)}")
     lines.append("")
 
     # Instructions
