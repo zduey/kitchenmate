@@ -1,15 +1,32 @@
 [project]
 name = "recipe-clipper"
 version = "0.1.0"
-description = "Extract recipes from websites with ease"
+description = "Extract recipes from websites, images, and documents."
 readme = "README.md"
 requires-python = ">=3.9"
+license = { text = "MIT" }
 authors = [
     { name = "Recipe Clipper Contributors" }
+]
+keywords = [
+    "recipe",
+    "scraping",
+    "cooking",
+    "food",
+    "parser",
+    "llm",
+    "vision",
+    "ocr",
+    "pdf",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Text Processing :: Markup :: HTML",
+    "Topic :: Utilities",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
@@ -18,7 +35,6 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
 ]
-
 dependencies = [
     "recipe-scrapers>=15.0.0",
     "httpx>=0.27.0",
@@ -27,6 +43,11 @@ dependencies = [
     "pydantic>=2.0.0",
     "python-dotenv>=1.0.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/zduey/recipe-clipper"
+Repository = "https://github.com/zduey/recipe-clipper"
+Issues = "https://github.com/zduey/recipe-clipper/issues"
 
 [project.optional-dependencies]
 # Individual LLM providers
