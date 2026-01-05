@@ -84,9 +84,7 @@ def _handle_recipe_extraction(
 def _validate_file_exists(path: Path, file_type: str) -> None:
     """Validate that a file exists."""
     if not path.exists():
-        console.print(
-            f"[red]Error:[/red] {file_type} file not found: {path}", file=sys.stderr
-        )
+        console.print(f"[red]Error:[/red] {file_type} file not found: {path}", file=sys.stderr)
         raise typer.Exit(code=1)
 
 

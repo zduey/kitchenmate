@@ -41,8 +41,7 @@ def _validate_model(model: str) -> None:
     """Validate that the model is supported."""
     if model not in SUPPORTED_MODELS:
         raise ValueError(
-            f"Unsupported model: {model}. "
-            f"Supported models: {', '.join(sorted(SUPPORTED_MODELS))}"
+            f"Unsupported model: {model}. Supported models: {', '.join(sorted(SUPPORTED_MODELS))}"
         )
 
 

@@ -318,9 +318,7 @@ def test_parse_recipe_from_image_api_error():
         with patch("recipe_clipper.parsers.llm_parser.Anthropic") as mock_anthropic_class:
             with patch("builtins.open", mock_open(read_data=b"fake image data")):
                 mock_client = Mock()
-                mock_client.beta.messages.parse.side_effect = Exception(
-                    "API rate limit exceeded"
-                )
+                mock_client.beta.messages.parse.side_effect = Exception("API rate limit exceeded")
                 mock_anthropic_class.return_value = mock_client
 
                 with pytest.raises(LLMError) as exc_info:
@@ -375,9 +373,9 @@ def test_parse_recipe_from_image_different_formats():
                     call_args = mock_client.beta.messages.parse.call_args
                     messages = call_args.kwargs["messages"]
                     media_type = messages[0]["content"][0]["source"]["media_type"]
-                    assert (
-                        media_type == expected_media_type
-                    ), f"Failed for {extension}: expected {expected_media_type}, got {media_type}"
+                    assert media_type == expected_media_type, (
+                        f"Failed for {extension}: expected {expected_media_type}, got {media_type}"
+                    )
         finally:
             # Clean up temporary file
             Path(image_path).unlink()
@@ -654,9 +652,7 @@ def test_parse_recipe_from_document_api_error():
         with patch("recipe_clipper.parsers.llm_parser.Anthropic") as mock_anthropic_class:
             with patch("builtins.open", mock_open(read_data=b"fake pdf data")):
                 mock_client = Mock()
-                mock_client.beta.messages.parse.side_effect = Exception(
-                    "API rate limit exceeded"
-                )
+                mock_client.beta.messages.parse.side_effect = Exception("API rate limit exceeded")
                 mock_anthropic_class.return_value = mock_client
 
                 with pytest.raises(LLMError) as exc_info:
