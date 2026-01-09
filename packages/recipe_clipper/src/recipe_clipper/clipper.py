@@ -1,5 +1,7 @@
 """Main clipper orchestration for extracting recipes from URLs."""
 
+from typing import Optional
+
 from recipe_clipper.models import Recipe
 from recipe_clipper.http import fetch_url
 from recipe_clipper.parsers.recipe_scrapers_parser import parse_with_recipe_scrapers
@@ -8,7 +10,7 @@ from recipe_clipper.exceptions import RecipeParsingError
 
 def clip_recipe(
     url: str,
-    api_key: str | None = None,
+    api_key: Optional[str] = None,
     use_llm_fallback: bool = True,
     timeout: int = 10,
 ) -> Recipe:

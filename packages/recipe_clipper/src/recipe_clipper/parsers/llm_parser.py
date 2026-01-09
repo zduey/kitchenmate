@@ -2,7 +2,7 @@
 
 import base64
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, Union
 
 from pydantic import AnyUrl
 
@@ -106,7 +106,7 @@ def _call_claude_api(
     messages: list,
     betas: list[str],
     source_description: str,
-    tools: list | None = None,
+    tools: Optional[list] = None,
 ) -> Recipe:
     """Make a Claude API call with error handling.
 
@@ -141,7 +141,7 @@ def _call_claude_api(
         raise LLMError(f"Claude API call failed for {source_description}: {error}") from error
 
 
-def _set_recipe_source_url(recipe: Recipe, source_path: str | Path) -> Recipe:
+def _set_recipe_source_url(recipe: Recipe, source_path: Union[str, Path]) -> Recipe:
     """Set the source URL for a recipe.
 
     Args:
@@ -230,7 +230,7 @@ def parse_with_claude(url: str, api_key: str, model: str = "claude-sonnet-4-5") 
 
 
 def parse_recipe_from_image(
-    image_path: str | Path, api_key: str, model: str = "claude-sonnet-4-5"
+    image_path: Union[str, Path], api_key: str, model: str = "claude-sonnet-4-5"
 ) -> Recipe:
     """Parse a recipe from an image using Claude's vision API.
 
@@ -291,7 +291,7 @@ def parse_recipe_from_image(
 
 
 def parse_recipe_from_document(
-    document_path: str | Path, api_key: str, model: str = "claude-sonnet-4-5"
+    document_path: Union[str, Path], api_key: str, model: str = "claude-sonnet-4-5"
 ) -> Recipe:
     """Parse a recipe from a document using Claude's file API.
 

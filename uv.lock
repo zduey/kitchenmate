@@ -11,8 +11,8 @@ resolution-markers = [
 
 [manifest]
 members = [
+    "kitchen-mate",
     "recipe-clipper",
-    "recipe-manager",
 ]
 
 [manifest.dependency-groups]
@@ -1181,6 +1181,17 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/5f/c1/3791e39d65c39b4e081010f2cf6f9443b7b6b9f6de63a5e458172c5c9376/jstyleson-0.0.2.tar.gz", hash = "sha256:680003f3b15a2959e4e6a351f3b858e3c07dd3e073a0d54954e34d8ea5e1308e", size = 2004, upload-time = "2016-06-21T14:38:54.305Z" }
 
 [[package]]
+name = "kitchen-mate"
+version = "0.1.0"
+source = { editable = "apps/kitchen_mate" }
+dependencies = [
+    { name = "recipe-clipper" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "recipe-clipper", editable = "packages/recipe_clipper" }]
+
+[[package]]
 name = "librt"
 version = "0.7.4"
 source = { registry = "https://pypi.org/simple" }
@@ -2000,7 +2011,7 @@ wheels = [
 
 [[package]]
 name = "recipe-clipper"
-version = "0.1.0"
+version = "0.1.0a0"
 source = { editable = "packages/recipe_clipper" }
 dependencies = [
     { name = "httpx" },
@@ -2062,17 +2073,6 @@ requires-dist = [
     { name = "typer", specifier = ">=0.12.0" },
 ]
 provides-extras = ["llm-anthropic", "llm-openai", "llm-google", "llm-cohere", "llm", "dev"]
-
-[[package]]
-name = "recipe-manager"
-version = "0.1.0"
-source = { editable = "apps/recipe_manager" }
-dependencies = [
-    { name = "recipe-clipper" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "recipe-clipper", editable = "packages/recipe_clipper" }]
 
 [[package]]
 name = "recipe-scrapers"

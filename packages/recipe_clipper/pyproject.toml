@@ -1,6 +1,6 @@
 [project]
 name = "recipe-clipper"
-version = "0.1.0"
+version = "0.1.0a0"
 description = "Extract recipes from websites, images, and documents."
 readme = "README.md"
 requires-python = ">=3.9"

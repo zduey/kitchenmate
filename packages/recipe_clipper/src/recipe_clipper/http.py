@@ -1,7 +1,7 @@
 """HTTP client for fetching recipe pages."""
 
 import httpx
-from typing import Dict
+from typing import Dict, Optional
 
 from recipe_clipper.exceptions import NetworkError
 from recipe_clipper.models import ImmutableBaseModel
@@ -21,7 +21,7 @@ class HttpResponse(ImmutableBaseModel):
 def fetch_url(
     url: str,
     timeout: int = DEFAULT_TIMEOUT,
-    headers: Dict[str, str] | None = None,
+    headers: Optional[Dict[str, str]] = None,
 ) -> HttpResponse:
     """
     Fetch HTML content from a URL.
