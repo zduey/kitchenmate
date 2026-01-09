@@ -1,13 +1,13 @@
-# Recipe Clipper Monorepo
+# Kitchen Mate
 
-This is a monorepo containing the Recipe Clipper project components.
+This is a monorepo containing components related to Kitchen Mate.
 
 ## Repository Structure
 
 ```
-recipe-clipper/
+kitchen-mate/
 ├── apps/                          # Applications
-│   └── recipe_manager/           # Web application (coming soon)
+│   └── kitchen_mate/           # Web application (coming soon)
 │
 └── packages/                      # Reusable libraries
     └── recipe_clipper/           # Recipe clipper library + CLI
@@ -17,17 +17,11 @@ recipe-clipper/
 
 ### [recipe-clipper](./packages/recipe_clipper/)
 
-Python library and CLI tool for extracting recipes from websites.
-
-- **Library**: Extract recipes programmatically from 100+ websites
-- **CLI**: Command-line tool with text, JSON, and Markdown output formats
-- **Supported Sites**: Uses [recipe-scrapers](https://github.com/hhursev/recipe-scrapers) for broad website support
-
-See [packages/recipe_clipper/README.md](./packages/recipe_clipper/README.md) for installation and usage instructions.
+Python library and CLI tool for extracting recipes from websites using [recipe-scrapers](https://github.com/hhursev/recipe-scrapers) for broad website support, but falling back to LLM-based parsing (if enabled) for general support.
 
 ## Development
 
-This monorepo uses [uv](https://github.com/astral-sh/uv) for dependency management.
+This repo uses [uv](https://github.com/astral-sh/uv) for dependency management.
 
 ### Setup
 
@@ -51,7 +45,3 @@ uv run --directory packages/recipe_clipper pytest
 # Run specific test file
 uv run pytest packages/recipe_clipper/tests/test_clipper.py -v
 ```
-
-## License
-
-MIT

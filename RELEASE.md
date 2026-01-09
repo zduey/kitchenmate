@@ -25,10 +25,10 @@ The publish workflow (`.github/workflows/publish.yml`) automatically:
 
 ### Prerequisites
 
-1. Ensure you're on the `master` branch and it's up to date:
+1. Ensure you're on the `main` branch and it's up to date:
    ```bash
-   git checkout master
-   git pull origin master
+   git checkout main
+   git pull origin main
    ```
 
 2. Ensure all CI checks pass on master
@@ -51,7 +51,7 @@ The publish workflow (`.github/workflows/publish.yml`) automatically:
    ```bash
    git add packages/recipe_clipper/pyproject.toml packages/recipe_clipper/src/recipe_clipper/__init__.py
    git commit -m "chore: bump version to 0.2.0"
-   git push origin master
+   git push
    ```
 
 4. **Create and push a git tag**:
@@ -64,7 +64,7 @@ The publish workflow (`.github/workflows/publish.yml`) automatically:
    ```
 
 5. **Monitor the workflow**:
-   - Go to https://github.com/zduey/recipe-clipper/actions
+   - Go to https://github.com/zduey/kitchenmate/actions
    - Watch the "Publish to PyPI" workflow run
    - Verify all jobs pass (validate → test → build → publish)
 
