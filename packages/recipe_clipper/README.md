@@ -1,5 +1,10 @@
 # Recipe Clipper
 
+[![Python Version](https://img.shields.io/badge/python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)](https://www.python.org/downloads/)
+[![codecov](https://codecov.io/gh/zduey/recipe-clipper/branch/master/graph/badge.svg)](https://codecov.io/gh/zduey/recipe-clipper)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![PyPI version](https://img.shields.io/pypi/v/recipe-clipper.svg)](https://pypi.org/project/recipe-clipper/)
+
 Extract recipes from websites, images, and documents with ease. Recipe Clipper supports multiple input sources and uses both web scraping and Claude's vision capabilities to extract structured recipe data.
 
 ## Features
