@@ -3,7 +3,6 @@
 import base64
 from pathlib import Path
 
-from anthropic import Anthropic
 from pydantic import AnyUrl
 
 from recipe_clipper.models import Recipe
@@ -98,7 +97,7 @@ def _get_recipe_extraction_prompt(source_type: str = "document") -> str:
 
 
 def _call_claude_api(
-    client: Anthropic,
+    client: "Anthropic",
     model: str,
     messages: list,
     betas: list[str],
@@ -197,6 +196,8 @@ def parse_with_claude(url: str, api_key: str, model: str = "claude-sonnet-4-5") 
         ValueError: If an unsupported model is specified
         LLMError: If Claude API call fails
     """
+    from anthropic import Anthropic
+
     _validate_model(model)
 
     client = Anthropic(api_key=api_key)
@@ -245,6 +246,8 @@ def parse_recipe_from_image(
         FileNotFoundError: If the image file doesn't exist
         LLMError: If Claude API call fails
     """
+    from anthropic import Anthropic
+
     _validate_model(model)
 
     image_file = Path(image_path)
@@ -304,6 +307,8 @@ def parse_recipe_from_document(
         FileNotFoundError: If the document file doesn't exist
         LLMError: If Claude API call fails
     """
+    from anthropic import Anthropic
+
     _validate_model(model)
 
     doc_file = Path(document_path)

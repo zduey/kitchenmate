@@ -6,6 +6,19 @@ from pathlib import Path
 from unittest.mock import Mock, patch, mock_open
 import pytest
 
+# Check if anthropic is installed
+try:
+    import anthropic
+    ANTHROPIC_AVAILABLE = True
+except ImportError:
+    ANTHROPIC_AVAILABLE = False
+
+# Skip entire module if anthropic is not installed
+pytestmark = pytest.mark.skipif(
+    not ANTHROPIC_AVAILABLE,
+    reason="anthropic library not installed (install with: pip install recipe-clipper[llm])"
+)
+
 from recipe_clipper.parsers.llm_parser import (
     parse_with_claude,
     parse_recipe_from_image,
@@ -47,7 +60,7 @@ def test_parse_with_claude_success():
     mock_message = Mock()
     mock_message.parsed_output = mock_recipe
 
-    with patch("recipe_clipper.parsers.llm_parser.Anthropic") as mock_anthropic_class:
+    with patch("anthropic.Anthropic") as mock_anthropic_class:
         mock_client = Mock()
         mock_client.beta.messages.parse.return_value = mock_message
         mock_anthropic_class.return_value = mock_client
@@ -88,7 +101,7 @@ def test_parse_with_claude_custom_model():
     mock_message = Mock()
     mock_message.parsed_output = mock_recipe
 
-    with patch("recipe_clipper.parsers.llm_parser.Anthropic") as mock_anthropic_class:
+    with patch("anthropic.Anthropic") as mock_anthropic_class:
         mock_client = Mock()
         mock_client.beta.messages.parse.return_value = mock_message
         mock_anthropic_class.return_value = mock_client
@@ -120,7 +133,7 @@ def test_parse_with_claude_api_error():
     url = "https://example.com/recipe"
     api_key = "sk-ant-test-key"
 
-    with patch("recipe_clipper.parsers.llm_parser.Anthropic") as mock_anthropic_class:
+    with patch("anthropic.Anthropic") as mock_anthropic_class:
         mock_client = Mock()
         mock_client.beta.messages.parse.side_effect = Exception("API rate limit exceeded")
         mock_anthropic_class.return_value = mock_client
@@ -148,7 +161,7 @@ def test_parse_with_claude_source_url_override():
     mock_message = Mock()
     mock_message.parsed_output = mock_recipe
 
-    with patch("recipe_clipper.parsers.llm_parser.Anthropic") as mock_anthropic_class:
+    with patch("anthropic.Anthropic") as mock_anthropic_class:
         mock_client = Mock()
         mock_client.beta.messages.parse.return_value = mock_message
         mock_anthropic_class.return_value = mock_client
@@ -211,7 +224,7 @@ def test_parse_recipe_from_image_success():
         image_path = tmp_file.name
 
     try:
-        with patch("recipe_clipper.parsers.llm_parser.Anthropic") as mock_anthropic_class:
+        with patch("anthropic.Anthropic") as mock_anthropic_class:
             with patch("builtins.open", mock_open(read_data=b"fake image data")):
                 mock_client = Mock()
                 mock_client.beta.messages.parse.return_value = mock_message
@@ -315,7 +328,7 @@ def test_parse_recipe_from_image_api_error():
         image_path = tmp_file.name
 
     try:
-        with patch("recipe_clipper.parsers.llm_parser.Anthropic") as mock_anthropic_class:
+        with patch("anthropic.Anthropic") as mock_anthropic_class:
             with patch("builtins.open", mock_open(read_data=b"fake image data")):
                 mock_client = Mock()
                 mock_client.beta.messages.parse.side_effect = Exception("API rate limit exceeded")
@@ -361,7 +374,7 @@ def test_parse_recipe_from_image_different_formats():
             image_path = tmp_file.name
 
         try:
-            with patch("recipe_clipper.parsers.llm_parser.Anthropic") as mock_anthropic_class:
+            with patch("anthropic.Anthropic") as mock_anthropic_class:
                 with patch("builtins.open", mock_open(read_data=b"fake image data")):
                     mock_client = Mock()
                     mock_client.beta.messages.parse.return_value = mock_message
@@ -418,7 +431,7 @@ def test_parse_recipe_from_document_pdf_success():
         doc_path = tmp_file.name
 
     try:
-        with patch("recipe_clipper.parsers.llm_parser.Anthropic") as mock_anthropic_class:
+        with patch("anthropic.Anthropic") as mock_anthropic_class:
             with patch("builtins.open", mock_open(read_data=b"fake pdf data")):
                 mock_client = Mock()
                 mock_client.beta.messages.parse.return_value = mock_message
@@ -481,7 +494,7 @@ def test_parse_recipe_from_document_txt_success():
         doc_path = tmp_file.name
 
     try:
-        with patch("recipe_clipper.parsers.llm_parser.Anthropic") as mock_anthropic_class:
+        with patch("anthropic.Anthropic") as mock_anthropic_class:
             with patch("builtins.open", mock_open(read_data=b"fake text data")):
                 mock_client = Mock()
                 mock_client.beta.messages.parse.return_value = mock_message
@@ -524,7 +537,7 @@ def test_parse_recipe_from_document_markdown_success():
         doc_path = tmp_file.name
 
     try:
-        with patch("recipe_clipper.parsers.llm_parser.Anthropic") as mock_anthropic_class:
+        with patch("anthropic.Anthropic") as mock_anthropic_class:
             with patch("builtins.open", mock_open(read_data=b"fake markdown data")):
                 mock_client = Mock()
                 mock_client.beta.messages.parse.return_value = mock_message
@@ -562,7 +575,7 @@ def test_parse_recipe_from_document_docx_success():
         doc_path = tmp_file.name
 
     try:
-        with patch("recipe_clipper.parsers.llm_parser.Anthropic") as mock_anthropic_class:
+        with patch("anthropic.Anthropic") as mock_anthropic_class:
             with patch("builtins.open", mock_open(read_data=b"fake docx data")):
                 mock_client = Mock()
                 mock_client.beta.messages.parse.return_value = mock_message
@@ -649,7 +662,7 @@ def test_parse_recipe_from_document_api_error():
         doc_path = tmp_file.name
 
     try:
-        with patch("recipe_clipper.parsers.llm_parser.Anthropic") as mock_anthropic_class:
+        with patch("anthropic.Anthropic") as mock_anthropic_class:
             with patch("builtins.open", mock_open(read_data=b"fake pdf data")):
                 mock_client = Mock()
                 mock_client.beta.messages.parse.side_effect = Exception("API rate limit exceeded")
