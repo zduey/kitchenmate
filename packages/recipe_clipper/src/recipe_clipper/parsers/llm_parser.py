@@ -2,11 +2,15 @@
 
 import base64
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pydantic import AnyUrl
 
 from recipe_clipper.models import Recipe
 from recipe_clipper.exceptions import LLMError
+
+if TYPE_CHECKING:
+    from anthropic import Anthropic
 
 
 SUPPORTED_MODELS = {

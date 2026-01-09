@@ -8,7 +8,7 @@ import pytest
 
 # Check if anthropic is installed
 try:
-    import anthropic
+    import anthropic  # noqa: F401
 
     ANTHROPIC_AVAILABLE = True
 except ImportError:
@@ -20,6 +20,7 @@ pytestmark = pytest.mark.skipif(
     reason="anthropic library not installed (install with: pip install recipe-clipper[llm])",
 )
 
+# ruff: noqa: E402
 from recipe_clipper.parsers.llm_parser import (
     parse_with_claude,
     parse_recipe_from_image,
