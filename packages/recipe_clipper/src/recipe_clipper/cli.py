@@ -128,23 +128,13 @@ def clip_webpage(
         help="Anthropic API key for LLM fallback (can also use ANTHROPIC_API_KEY env var)",
     ),
     use_llm_fallback: bool = typer.Option(
-        True,
+        False,
         "--use-llm-fallback/--no-llm-fallback",
         help="Use LLM fallback if recipe-scrapers fails",
     ),
 ):
     """
     Extract a recipe from a URL.
-
-    Examples:
-
-        recipe-clipper clip-webpage https://www.allrecipes.com/recipe/10813/best-chocolate-chip-cookies/
-
-        recipe-clipper clip-webpage https://example.com/recipe --format json --output recipe.json
-
-        recipe-clipper clip-webpage https://example.com/recipe --format markdown --output recipe.md
-
-        recipe-clipper clip-webpage https://unsupported-site.com/recipe --api-key sk-ant-... --use-llm-fallback
     """
     _handle_recipe_extraction(
         extract_func=lambda: clip_recipe(

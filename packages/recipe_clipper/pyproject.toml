@@ -45,23 +45,18 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/zduey/recipe-clipper"
-Repository = "https://github.com/zduey/recipe-clipper"
-Issues = "https://github.com/zduey/recipe-clipper/issues"
+Homepage = "https://github.com/zduey/kitchenmate/tree/main/packages/recipe_clipper"
+Repository = "https://github.com/zduey/kitchenmate/tree/main/packages/recipe_clipper"
+Issues = "https://github.com/zduey/kitchenmate//issues"
 
 [project.optional-dependencies]
-# Individual LLM providers
 llm-anthropic = ["anthropic>=0.40.0"]
 llm-openai = ["openai>=1.0.0"]
 llm-google = ["google-generativeai>=0.3.0"]
 llm-cohere = ["cohere>=5.0.0"]
 
-# All LLM providers
 llm = [
     "anthropic>=0.40.0",
-    "openai>=1.0.0",
-    "google-generativeai>=0.3.0",
-    "cohere>=5.0.0",
 ]
 
 # Development dependencies

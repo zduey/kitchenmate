@@ -5,18 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PyPI version](https://img.shields.io/pypi/v/recipe-clipper.svg)](https://pypi.org/project/recipe-clipper/)
 
-Extract recipes from websites, images, and documents with ease. Recipe Clipper supports multiple input sources and uses both web scraping and Claude's vision capabilities to extract structured recipe data.
-
-## Features
-
-- 🌐 **Web Scraping**: Extract recipes from 100+ websites using [recipe-scrapers](https://github.com/hhursev/recipe-scrapers)
-- 📸 **Image OCR**: Extract recipes from cookbook photos, recipe cards, or screenshots using Claude's vision API
-- 📄 **Document Parsing**: Extract recipes from PDFs, Word documents, text files, and markdown
-- 🤖 **LLM Fallback**: Automatically falls back to Claude for unsupported websites
-- 🎨 **Multiple Output Formats**: Export as text, JSON, or markdown
-- 🔧 **CLI & Library**: Use as a command-line tool or import as a Python library
-- ⚡ **Type-Safe**: Full type hints with Pydantic models
-- 🔒 **Immutable**: Data models are frozen for safety
+Extract recipes from websites, images, and documents with ease. Recipe Clipper supports multiple input sources and uses both web scraping and LLMs to extract structured recipe data from documents and images.
 
 ## Installation
 
@@ -25,15 +14,7 @@ Extract recipes from websites, images, and documents with ease. Recipe Clipper s
 ```bash
 pip install recipe-clipper
 ```
-
-This includes:
-- Web scraping for 100+ recipe websites
-- CLI tool
-- All core functionality
-
-### With Claude Support
-
-For image/document parsing and LLM fallback:
+### With LLM-fallback support using Claude
 
 ```bash
 pip install recipe-clipper[llm]
@@ -46,14 +27,16 @@ pip install recipe-clipper[llm]
 #### Extract from a website
 
 ```bash
-# Basic usage
+# Basic usage, outputs recipe as text file
 recipe-clipper clip-webpage https://www.allrecipes.com/recipe/10813/best-chocolate-chip-cookies/
 
-# Save as JSON
-recipe-clipper clip-webpage https://example.com/recipe --format json --output recipe.json
+# Use a different output format
+recipe-clipper clip-webpage https://www.allrecipes.com/recipe/10813/best-chocolate-chip-cookies/ --format json --output chocolate_chip_cookies.json
 
-# Save as markdown
-recipe-clipper clip-webpage https://example.com/recipe --format markdown --output recipe.md
+# Use LLM fallback for recipes that are not supported by recipe-scrapers
+export ANTROPIC_API_KEY=your-api-key
+recipe-clipper clip-webpage https://smittenkitchen.com/2011/02/meatball-sub-with-caramelized-onions/ --use-llm-fallback
+
 ```
 
 #### Extract from an image
@@ -62,6 +45,7 @@ recipe-clipper clip-webpage https://example.com/recipe --format markdown --outpu
 # Requires ANTHROPIC_API_KEY environment variable
 export ANTHROPIC_API_KEY=your-api-key
 
+# Supports jpg, jpeg, png, gif, webp
 recipe-clipper clip-image cookbook-photo.jpg
 
 # Save as JSON
@@ -86,12 +70,7 @@ recipe-clipper clip-document cookbook.docx --model claude-opus-4 --format markdo
 from recipe_clipper import clip_recipe
 
 # Without LLM fallback (uses recipe-scrapers only)
-recipe = clip_recipe(
-    url="https://www.allrecipes.com/recipe/10813/best-chocolate-chip-cookies/",
-    api_key=None,
-    use_llm_fallback=False
-)
-
+recipe = clip_recipe(url="https://www.allrecipes.com/recipe/10813/best-chocolate-chip-cookies/")
 print(recipe.title)
 for ingredient in recipe.ingredients:
     print(f"- {ingredient.name}")
@@ -107,7 +86,7 @@ api_key = os.getenv("ANTHROPIC_API_KEY")
 
 # Automatically falls back to Claude if recipe-scrapers doesn't support the site
 recipe = clip_recipe(
-    url="https://unsupported-site.com/recipe",
+    url="https://smittenkitchen.com/2011/02/meatball-sub-with-caramelized-onions/",
     api_key=api_key,
     use_llm_fallback=True
 )
@@ -156,16 +135,18 @@ from recipe_clipper.formatters import (
     format_recipe_markdown
 )
 
-recipe = clip_recipe("https://example.com/recipe", use_llm_fallback=False)
+recipe = clip_recipe("https://www.allrecipes.com/recipe/10813/best-chocolate-chip-cookies/")
 
 # Plain text
 print(format_recipe_text(recipe))
 
 # JSON
 json_str = format_recipe_json(recipe)
+print(json_str)
 
 # Markdown
 markdown_str = format_recipe_markdown(recipe)
+print(markdown_str)
 ```
 
 ## Configuration
@@ -183,74 +164,6 @@ Or create a `.env` file:
 ```env
 ANTHROPIC_API_KEY=your-api-key-here
 ```
-
-### Supported Models
-
-- `claude-sonnet-4-5` (default, recommended)
-- `claude-sonnet-4`
-- `claude-opus-4`
-- `claude-3-5-sonnet-20241022`
-- `claude-3-5-sonnet-20240620`
-
-## Recipe Data Model
-
-Extracted recipes use a structured Pydantic model:
-
-```python
-class Recipe:
-    title: str
-    ingredients: list[Ingredient]
-    instructions: list[str]
-    source_url: Optional[AnyUrl]
-    image: Optional[HttpUrl]
-    metadata: Optional[RecipeMetadata]
-
-class Ingredient:
-    name: str
-    amount: Optional[str]
-    unit: Optional[str]
-    preparation: Optional[str]
-    display_text: Optional[str]
-
-class RecipeMetadata:
-    author: Optional[str]
-    servings: Optional[str]
-    prep_time: Optional[int]  # minutes
-    cook_time: Optional[int]  # minutes
-    total_time: Optional[int]  # minutes
-    categories: Optional[list[str]]
-```
-
-## Supported Input Sources
-
-### 1. Websites (100+ sites)
-
-Uses [recipe-scrapers](https://github.com/hhursev/recipe-scrapers) which supports:
-- AllRecipes
-- Food Network
-- Serious Eats
-- NYT Cooking
-- And 100+ more sites
-
-For unsupported sites, enable LLM fallback.
-
-### 2. Images
-
-Extracts recipes from:
-- Cookbook photos
-- Handwritten recipe cards
-- Screenshots
-- Scanned documents
-
-Supported formats: `.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`
-
-### 3. Documents
-
-Extracts recipes from:
-- PDFs (recipe PDFs, cookbook PDFs)
-- Word documents (`.docx`)
-- Text files (`.txt`)
-- Markdown files (`.md`)
 
 ## Development
 

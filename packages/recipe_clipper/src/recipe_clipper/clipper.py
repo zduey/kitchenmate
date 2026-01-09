@@ -11,7 +11,7 @@ from recipe_clipper.exceptions import RecipeParsingError
 def clip_recipe(
     url: str,
     api_key: Optional[str] = None,
-    use_llm_fallback: bool = True,
+    use_llm_fallback: bool = False,
     timeout: int = 10,
 ) -> Recipe:
     """
@@ -23,7 +23,7 @@ def clip_recipe(
     Args:
         url: The URL of the recipe page to extract
         api_key: Anthropic API key for LLM fallback
-        use_llm_fallback: Whether to use LLM fallback if recipe-scrapers fails (default: True)
+        use_llm_fallback: Whether to use LLM fallback if recipe-scrapers fails (default: False)
         timeout: HTTP request timeout in seconds (default: 10)
 
     Returns:

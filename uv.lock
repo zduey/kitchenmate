@@ -2034,9 +2034,6 @@ dev = [
 ]
 llm = [
     { name = "anthropic" },
-    { name = "cohere" },
-    { name = "google-generativeai" },
-    { name = "openai" },
 ]
 llm-anthropic = [
     { name = "anthropic" },
@@ -2055,12 +2052,9 @@ llm-openai = [
 requires-dist = [
     { name = "anthropic", marker = "extra == 'llm'", specifier = ">=0.40.0" },
     { name = "anthropic", marker = "extra == 'llm-anthropic'", specifier = ">=0.40.0" },
-    { name = "cohere", marker = "extra == 'llm'", specifier = ">=5.0.0" },
     { name = "cohere", marker = "extra == 'llm-cohere'", specifier = ">=5.0.0" },
-    { name = "google-generativeai", marker = "extra == 'llm'", specifier = ">=0.3.0" },
     { name = "google-generativeai", marker = "extra == 'llm-google'", specifier = ">=0.3.0" },
     { name = "httpx", specifier = ">=0.27.0" },
-    { name = "openai", marker = "extra == 'llm'", specifier = ">=1.0.0" },
     { name = "openai", marker = "extra == 'llm-openai'", specifier = ">=1.0.0" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
