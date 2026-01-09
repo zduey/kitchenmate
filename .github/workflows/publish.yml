@@ -102,7 +102,7 @@ jobs:
 
       - name: Verify build artifacts
         run: |
-          ls -lh /home/runner/work/recipe-clipper/recipe-clipper/dist/
+          ls -lh /home/runner/work/kitchenmate/kitchenmate/dist/
           echo "✓ Built recipe-clipper-${{ needs.validate.outputs.version }}.tar.gz"
           echo "✓ Built recipe_clipper-${{ needs.validate.outputs.version }}-py3-none-any.whl"
 
