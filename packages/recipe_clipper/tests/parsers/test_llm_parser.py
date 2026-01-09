@@ -9,6 +9,7 @@ import pytest
 # Check if anthropic is installed
 try:
     import anthropic
+
     ANTHROPIC_AVAILABLE = True
 except ImportError:
     ANTHROPIC_AVAILABLE = False
@@ -16,7 +17,7 @@ except ImportError:
 # Skip entire module if anthropic is not installed
 pytestmark = pytest.mark.skipif(
     not ANTHROPIC_AVAILABLE,
-    reason="anthropic library not installed (install with: pip install recipe-clipper[llm])"
+    reason="anthropic library not installed (install with: pip install recipe-clipper[llm])",
 )
 
 from recipe_clipper.parsers.llm_parser import (
