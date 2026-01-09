@@ -25,7 +25,7 @@ jobs:
               - 'pyproject.toml'
               - 'uv.lock'
             app:
-              - 'apps/recipe_manager/**'
+              - 'apps/kitchen_mate/**'
               - 'pyproject.toml'
               - 'uv.lock'
 
@@ -122,15 +122,15 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv sync --directory apps/recipe_manager --extra dev
+          uv sync --directory apps/kitchen_mate --extra dev
 
       - name: Run ruff format check
         run: |
-          uv run --directory apps/recipe_manager ruff format --check src/
+          uv run --directory apps/kitchen_mate ruff format --check src/
 
       - name: Run ruff lint
         run: |
-          uv run --directory apps/recipe_manager ruff check src/
+          uv run --directory apps/kitchen_mate ruff check src/
 
   app-test:
     name: App - Test
@@ -153,11 +153,11 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv sync --directory apps/recipe_manager --extra dev
+          uv sync --directory apps/kitchen_mate --extra dev
 
       - name: Run tests
         run: |
-          uv run --directory apps/recipe_manager pytest -v
+          uv run --directory apps/kitchen_mate pytest -v
 
   # Workspace-wide checks - always run
   workspace-lint:

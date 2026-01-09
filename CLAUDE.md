@@ -8,7 +8,7 @@ This file provides guidance to Claude Code when working with this repository.
 
 - **Library Package** (`packages/recipe_clipper/`): Reusable Python library for recipe extraction
 - **CLI Tool**: Command-line interface included with the library package
-- **Web App** (`apps/recipe_manager/`): Web application using the library (coming soon)
+- **Web App** (`apps/kitchen_mate/`): Web application using the library (coming soon)
 
 ## Monorepo Structure
 
@@ -16,7 +16,7 @@ This file provides guidance to Claude Code when working with this repository.
 recipe-clipper/
 ├── .github/workflows/         # CI/CD workflows (future)
 ├── apps/                      # Applications
-│   └── recipe_manager/       # Web app (placeholder)
+│   └── kitchen_mate/         # Web app (placeholder)
 ├── packages/                  # Reusable libraries
 │   └── recipe_clipper/       # Main library + CLI
 │       ├── src/
@@ -225,7 +225,7 @@ The repository uses GitHub Actions for continuous integration with smart path fi
   - Includes coverage reporting
   - Uploads coverage to Codecov
 
-**3. App Pipeline** (runs if `apps/recipe_manager/` changed)
+**3. App Pipeline** (runs if `apps/kitchen_mate/` changed)
 - `app-lint`: Runs ruff format check and lint
 - `app-test`: Runs pytest
 
@@ -241,7 +241,7 @@ Changes to these paths trigger library pipeline:
 - `uv.lock`
 
 Changes to these paths trigger app pipeline:
-- `apps/recipe_manager/**`
+- `apps/kitchen_mate/**`
 - `pyproject.toml` (root)
 - `uv.lock`
 
