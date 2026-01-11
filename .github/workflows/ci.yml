@@ -126,11 +126,11 @@ jobs:
 
       - name: Run ruff format check
         run: |
-          uv run --directory apps/kitchen_mate ruff format --check src/
+          uv run --directory apps/kitchen_mate ruff format --check src/ tests/
 
       - name: Run ruff lint
         run: |
-          uv run --directory apps/kitchen_mate ruff check src/
+          uv run --directory apps/kitchen_mate ruff check src/ tests/
 
   app-test:
     name: App - Test
