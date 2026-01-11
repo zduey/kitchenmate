@@ -4,36 +4,55 @@ This file provides guidance to Claude Code when working with this repository.
 
 ## Project Overview
 
-**Recipe Clipper** is a Python monorepo for extracting recipes from websites. It contains:
+**Kitchen Mate** is a monorepo for extracting recipes from websites. It contains:
 
 - **Library Package** (`packages/recipe_clipper/`): Reusable Python library for recipe extraction
 - **CLI Tool**: Command-line interface included with the library package
-- **Web App** (`apps/kitchen_mate/`): Web application using the library (coming soon)
+- **Backend API** (`apps/kitchen_mate/`): FastAPI backend for recipe extraction
+- **Frontend SPA** (`apps/kitchen_mate/frontend/`): React single-page application
 
 ## Monorepo Structure
 
 ```
-recipe-clipper/
-├── .github/workflows/         # CI/CD workflows (future)
+kitchenmate/
+├── .github/workflows/         # CI/CD workflows
 ├── apps/                      # Applications
-│   └── kitchen_mate/         # Web app (placeholder)
+│   └── kitchen_mate/         # Full-stack application
+│       ├── src/kitchen_mate/        # FastAPI backend
+│       │   ├── __init__.py
+│       │   ├── main.py              # FastAPI app entry point
+│       │   ├── config.py            # Settings management
+│       │   ├── schemas.py           # Request/response models
+│       │   └── routes/
+│       │       └── clip.py          # /clip endpoint
+│       ├── frontend/                # React SPA
+│       │   ├── src/
+│       │   │   ├── main.tsx         # React entry point
+│       │   │   ├── App.tsx          # Main application component
+│       │   │   ├── components/      # UI components
+│       │   │   ├── api/             # API client
+│       │   │   └── types/           # TypeScript types
+│       │   ├── package.json
+│       │   ├── vite.config.ts
+│       │   └── tsconfig.json
+│       ├── tests/
+│       ├── Dockerfile
+│       └── pyproject.toml
 ├── packages/                  # Reusable libraries
 │   └── recipe_clipper/       # Main library + CLI
-│       ├── src/
-│       │   └── recipe_clipper/
-│       │       ├── __init__.py          # Public API (clip_recipe)
-│       │       ├── cli.py               # CLI implementation
-│       │       ├── clipper.py           # Main orchestration
-│       │       ├── models.py            # Pydantic data models
-│       │       ├── exceptions.py        # Custom exceptions
-│       │       ├── http.py              # HTTP client
-│       │       ├── formatters.py        # Output formatters
-│       │       └── parsers/             # Parser implementations
-│       │           ├── __init__.py
-│       │           └── recipe_scrapers_parser.py
-│       ├── tests/                       # Test suite
-│       ├── pyproject.toml               # Package configuration
-│       └── README.md                    # Library documentation
+│       ├── src/recipe_clipper/
+│       │   ├── __init__.py          # Public API (clip_recipe)
+│       │   ├── cli.py               # CLI implementation
+│       │   ├── clipper.py           # Main orchestration
+│       │   ├── models.py            # Pydantic data models
+│       │   ├── exceptions.py        # Custom exceptions
+│       │   ├── http.py              # HTTP client
+│       │   ├── formatters.py        # Output formatters
+│       │   └── parsers/             # Parser implementations
+│       ├── tests/
+│       ├── pyproject.toml
+│       └── README.md
+├── docker-compose.yml         # Docker orchestration
 ├── pyproject.toml             # Root workspace configuration
 ├── uv.lock                    # Dependency lock file
 ├── README.md                  # Repository overview
@@ -78,6 +97,42 @@ The library uses pure functions for core logic:
    - Single command (default): `recipe-clipper <URL>`
    - Options: `--format`, `--output`, `--timeout`
 
+### Backend API (`apps/kitchen_mate/`)
+
+The FastAPI backend provides HTTP access to recipe extraction:
+
+- **Main App** (`main.py`): FastAPI application with uvicorn server
+- **Config** (`config.py`): Settings management with pydantic-settings
+- **Schemas** (`schemas.py`): Request/response Pydantic models
+- **Routes** (`routes/clip.py`): Recipe clipping endpoint
+
+**Endpoint: `POST /clip`**
+
+Request body:
+```json
+{
+  "url": "https://example.com/recipe",
+  "format": "json",           // "text" | "json" | "markdown"
+  "timeout": 10,              // HTTP timeout in seconds
+  "use_llm_fallback": false,  // Enable LLM fallback
+  "download": false           // Return as file download
+}
+```
+
+### Frontend SPA (`apps/kitchen_mate/frontend/`)
+
+The React frontend provides a web interface for recipe extraction:
+
+- **Stack**: React 18 + TypeScript + Vite + Tailwind CSS
+- **Components**:
+  - `App.tsx`: Main application with state management
+  - `RecipeForm.tsx`: URL input form
+  - `RecipeCard.tsx`: Recipe display with download options
+  - `LoadingSpinner.tsx`: Loading state indicator
+  - `ErrorMessage.tsx`: Error display
+- **API Client** (`api/clip.ts`): Handles recipe extraction requests
+- **Development**: Vite dev server with API proxy to backend
+
 ### Public API
 
 Only `clip_recipe` is exported at the top level:
@@ -118,11 +173,45 @@ uv run --directory packages/recipe_clipper recipe-clipper <URL> --format json
 uv run --directory packages/recipe_clipper recipe-clipper <URL> --format markdown -o recipe.md
 ```
 
+### Running the Backend
+
+```bash
+# Start the development server
+uv run --directory apps/kitchen_mate uvicorn kitchen_mate.main:app --reload
+
+# Or using Docker
+docker compose up --build
+```
+
+### Running the Frontend
+
+```bash
+# Navigate to frontend directory
+cd apps/kitchen_mate/frontend
+
+# Install dependencies (first time only)
+npm install
+
+# Start development server (port 5173)
+npm run dev
+
+# Build for production
+npm run build
+
+# Run linting
+npm run lint
+```
+
+**Note**: The Vite dev server proxies API requests to the backend at `http://localhost:8000`.
+
 ### Testing
 
 ```bash
-# Run all tests
+# Run library tests
 uv run --directory packages/recipe_clipper pytest
+
+# Run backend tests
+uv run --directory apps/kitchen_mate pytest
 
 # Run specific test file
 uv run pytest packages/recipe_clipper/tests/test_clipper.py -v
@@ -207,12 +296,13 @@ uv run mypy packages/recipe_clipper/src/
 
 The repository uses GitHub Actions for continuous integration with smart path filtering:
 
-- **Separate jobs for library and app**: Only runs relevant checks when code changes
+- **Separate jobs for library, backend, and frontend**: Only runs relevant checks when code changes
 - **Path-based triggers**: Uses `dorny/paths-filter` to detect which components changed
-- **Lint before test**: Ensures code quality before running tests
+- **Lint before test/build**: Ensures code quality before running tests
 - **Multi-version testing**: Library tests run on Python 3.9-3.14
+- **Docker builds**: Automated image builds pushed to GitHub Container Registry
 
-### Workflow Jobs
+### Workflow Jobs (ci.yml)
 
 **1. Change Detection** (`changes`)
 - Detects which paths changed in the PR/push
@@ -225,13 +315,27 @@ The repository uses GitHub Actions for continuous integration with smart path fi
   - Includes coverage reporting
   - Uploads coverage to Codecov
 
-**3. App Pipeline** (runs if `apps/kitchen_mate/` changed)
+**3. Backend Pipeline** (runs if `apps/kitchen_mate/` changed)
 - `app-lint`: Runs ruff format check and lint
 - `app-test`: Runs pytest
 
-**4. Workspace Checks** (always runs)
+**4. Frontend Pipeline** (runs if `apps/kitchen_mate/` changed)
+- `frontend-lint`: Runs ESLint
+- `frontend-build`: Validates TypeScript compilation and Vite build
+
+**5. Workspace Checks** (always runs)
 - `workspace-lint`: Validates workspace configuration
 - Checks `uv.lock` is up to date
+
+### Docker Workflow (docker.yml)
+
+Builds and pushes Docker images to GitHub Container Registry:
+
+- **Triggers**: Pushes to main branch and version tags (`v*.*.*`)
+- **Multi-platform**: Builds for linux/amd64 and linux/arm64
+- **Image**: `ghcr.io/<owner>/kitchenmate`
+- **Tags**: Branch name, version tags, git SHA
+- **Caching**: Uses GitHub Actions cache for faster builds
 
 ### Path Filters
 
@@ -240,7 +344,7 @@ Changes to these paths trigger library pipeline:
 - `pyproject.toml` (root)
 - `uv.lock`
 
-Changes to these paths trigger app pipeline:
+Changes to these paths trigger backend and frontend pipelines:
 - `apps/kitchen_mate/**`
 - `pyproject.toml` (root)
 - `uv.lock`
@@ -248,9 +352,9 @@ Changes to these paths trigger app pipeline:
 ### Workflow Notes
 
 - **Efficiency**: Only runs necessary tests based on changed files
-- **Dependencies**: Lint jobs must pass before tests run
+- **Dependencies**: Lint jobs must pass before tests/builds run
 - **Coverage**: Only uploaded from Python 3.14 runs
-- **Caching**: uv dependencies are cached for faster runs
+- **Caching**: uv and npm dependencies are cached for faster runs
 
 ## Workflow Notes
 
