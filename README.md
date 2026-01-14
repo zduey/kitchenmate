@@ -1,23 +1,27 @@
 # Kitchen Mate
 
-This is a monorepo containing components related to Kitchen Mate.
+A monorepo for recipe extraction tools and services.
 
 ## Repository Structure
 
 ```
-kitchen-mate/
-├── apps/                          # Applications
-│   └── kitchen_mate/           # Web application (coming soon)
+kitchenmate/
+├── apps/
+│   └── kitchen_mate/             # FastAPI backend API
 │
-└── packages/                      # Reusable libraries
-    └── recipe_clipper/           # Recipe clipper library + CLI
+└── packages/
+    └── recipe_clipper/           # Recipe extraction library + CLI
 ```
 
-## Packages
+## Components
 
 ### [recipe-clipper](./packages/recipe_clipper/)
 
-Python library and CLI tool for extracting recipes from websites using [recipe-scrapers](https://github.com/hhursev/recipe-scrapers) for broad website support, but falling back to LLM-based parsing (if enabled) for general support.
+Python library and CLI tool for extracting recipes from websites using [recipe-scrapers](https://github.com/hhursev/recipe-scrapers) for broad website support, with optional LLM-based fallback parsing.
+
+### [kitchen-mate](./apps/kitchen_mate/)
+
+FastAPI backend that wraps the recipe-clipper library, providing HTTP endpoints for recipe extraction with support for multiple output formats.
 
 ## Development
 
@@ -33,15 +37,28 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 uv sync --all-extras
 ```
 
-### Common Commands
+### Running the CLI
 
 ```bash
-# Run the CLI
 uv run --directory packages/recipe_clipper recipe-clipper <URL>
+```
 
-# Run tests for the library
+### Running the Backend
+
+```bash
+# Development server
+uv run --directory apps/kitchen_mate uvicorn kitchen_mate.main:app --reload
+
+# Using Docker
+docker compose up --build
+```
+
+### Testing
+
+```bash
+# Library tests
 uv run --directory packages/recipe_clipper pytest
 
-# Run specific test file
-uv run pytest packages/recipe_clipper/tests/test_clipper.py -v
+# Backend tests
+uv run --directory apps/kitchen_mate pytest
 ```

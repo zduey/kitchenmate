@@ -1,5 +1,7 @@
 """Main clipper orchestration for extracting recipes from URLs."""
 
+# TODO: rename module to clip.py
+
 from typing import Optional
 
 from recipe_clipper.models import Recipe
