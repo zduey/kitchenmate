@@ -73,32 +73,41 @@ async def _stream_clip_recipe(
     url: str,
     timeout: int,
     use_llm_fallback: bool,
+    force_llm: bool,
     api_key: str | None,
     client_ip: str | None,
     allowed_ips: str | None,
 ) -> AsyncGenerator[str, None]:
     """Stream recipe extraction with progress updates."""
     try:
-        # Stage 1: Fetching
-        yield _sse_event({"stage": "fetching", "message": "Fetching page..."})
-        response = await asyncio.to_thread(fetch_url, url, timeout=timeout)
-
-        # Stage 2: Parsing
-        yield _sse_event({"stage": "parsing", "message": "Parsing recipe..."})
-        try:
-            recipe = await asyncio.to_thread(parse_with_recipe_scrapers, response)
-        except RecipeParsingError:
-            if not use_llm_fallback:
-                raise
-
-            # Check LLM access only when actually needed
+        if force_llm:
+            # Force LLM extraction: skip recipe-scrapers entirely
             _check_llm_allowed(client_ip, api_key, allowed_ips)
-
-            # Stage 3: LLM fallback
             yield _sse_event({"stage": "llm", "message": "Using AI extraction..."})
             from recipe_clipper.parsers.llm_parser import parse_with_claude
 
             recipe = await asyncio.to_thread(parse_with_claude, url, api_key)
+        else:
+            # Stage 1: Fetching
+            yield _sse_event({"stage": "fetching", "message": "Fetching page..."})
+            response = await asyncio.to_thread(fetch_url, url, timeout=timeout)
+
+            # Stage 2: Parsing
+            yield _sse_event({"stage": "parsing", "message": "Parsing recipe..."})
+            try:
+                recipe = await asyncio.to_thread(parse_with_recipe_scrapers, response)
+            except RecipeParsingError:
+                if not use_llm_fallback:
+                    raise
+
+                # Check LLM access only when actually needed
+                _check_llm_allowed(client_ip, api_key, allowed_ips)
+
+                # Stage 3: LLM fallback
+                yield _sse_event({"stage": "llm", "message": "Using AI extraction..."})
+                from recipe_clipper.parsers.llm_parser import parse_with_claude
+
+                recipe = await asyncio.to_thread(parse_with_claude, url, api_key)
 
         # Stage 4: Complete
         yield _sse_event(
@@ -145,6 +154,7 @@ async def clip_recipe_endpoint(
                 str(clip_request.url),
                 clip_request.timeout,
                 clip_request.use_llm_fallback,
+                clip_request.force_llm,
                 api_key,
                 client_ip,
                 allowed_ips,
@@ -154,20 +164,27 @@ async def clip_recipe_endpoint(
 
     # Non-streaming: use the same logic but without SSE
     try:
-        response = await asyncio.to_thread(
-            fetch_url, str(clip_request.url), timeout=clip_request.timeout
-        )
-        try:
-            recipe = await asyncio.to_thread(parse_with_recipe_scrapers, response)
-        except RecipeParsingError:
-            if not clip_request.use_llm_fallback:
-                raise
-            # Check LLM access only when actually needed
+        if clip_request.force_llm:
+            # Force LLM extraction: skip recipe-scrapers entirely
             _check_llm_allowed(client_ip, api_key, allowed_ips)
-
             from recipe_clipper.parsers.llm_parser import parse_with_claude
 
             recipe = await asyncio.to_thread(parse_with_claude, str(clip_request.url), api_key)
+        else:
+            response = await asyncio.to_thread(
+                fetch_url, str(clip_request.url), timeout=clip_request.timeout
+            )
+            try:
+                recipe = await asyncio.to_thread(parse_with_recipe_scrapers, response)
+            except RecipeParsingError:
+                if not clip_request.use_llm_fallback:
+                    raise
+                # Check LLM access only when actually needed
+                _check_llm_allowed(client_ip, api_key, allowed_ips)
+
+                from recipe_clipper.parsers.llm_parser import parse_with_claude
+
+                recipe = await asyncio.to_thread(parse_with_claude, str(clip_request.url), api_key)
     except RecipeNotFoundError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
     except NetworkError as error:

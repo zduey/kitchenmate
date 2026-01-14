@@ -30,6 +30,7 @@ export interface ClipRequest {
   url: string;
   timeout?: number;
   use_llm_fallback?: boolean;
+  force_llm?: boolean;
   stream?: boolean;
 }
 

@@ -12,10 +12,11 @@ export class ClipError extends Error {
   }
 }
 
-export async function clipRecipe(url: string): Promise<Recipe> {
+export async function clipRecipe(url: string, forceLlm = false): Promise<Recipe> {
   const request: ClipRequest = {
     url,
     use_llm_fallback: true,
+    force_llm: forceLlm,
   };
 
   const response = await fetch(`${API_BASE}/clip`, {
@@ -36,11 +37,13 @@ export async function clipRecipe(url: string): Promise<Recipe> {
 
 export async function clipRecipeWithProgress(
   url: string,
-  onProgress: (event: ClipStreamEvent) => void
+  onProgress: (event: ClipStreamEvent) => void,
+  forceLlm = false
 ): Promise<Recipe> {
   const request: ClipRequest = {
     url,
     use_llm_fallback: true,
+    force_llm: forceLlm,
     stream: true,
   };
 

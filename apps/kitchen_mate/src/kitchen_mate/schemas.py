@@ -25,6 +25,10 @@ class ClipRequest(BaseModel):
         default=True,
         description="Enable LLM fallback for unsupported sites (requires API key)",
     )
+    force_llm: bool = Field(
+        default=False,
+        description="Skip recipe-scrapers and use LLM extraction directly",
+    )
     stream: bool = Field(
         default=False,
         description="Stream progress updates via Server-Sent Events",

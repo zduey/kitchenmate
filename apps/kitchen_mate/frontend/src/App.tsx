@@ -8,15 +8,15 @@ import { ErrorMessage } from "./components/ErrorMessage";
 
 type AppState =
   | { status: "idle" }
-  | { status: "loading"; url: string; progressMessage: string }
+  | { status: "loading"; url: string; forceLlm: boolean; progressMessage: string }
   | { status: "success"; url: string; recipe: Recipe }
-  | { status: "error"; url: string; message: string };
+  | { status: "error"; url: string; forceLlm: boolean; message: string };
 
 function App() {
   const [state, setState] = useState<AppState>({ status: "idle" });
 
-  const handleSubmit = async (url: string) => {
-    setState({ status: "loading", url, progressMessage: "Starting..." });
+  const handleSubmit = async (url: string, forceLlm: boolean) => {
+    setState({ status: "loading", url, forceLlm, progressMessage: "Starting..." });
 
     try {
       const recipe = await clipRecipeWithProgress(url, (event) => {
@@ -27,20 +27,20 @@ function App() {
               : prev
           );
         }
-      });
+      }, forceLlm);
       setState({ status: "success", url, recipe });
     } catch (error) {
       const message =
         error instanceof ClipError
           ? error.message
           : "An unexpected error occurred";
-      setState({ status: "error", url, message });
+      setState({ status: "error", url, forceLlm, message });
     }
   };
 
   const handleRetry = () => {
     if (state.status === "error") {
-      handleSubmit(state.url);
+      handleSubmit(state.url, state.forceLlm);
     }
   };
 
