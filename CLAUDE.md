@@ -332,22 +332,14 @@ The repository uses GitHub Actions for continuous integration with smart path fi
 - `app-test`: Runs pytest
 
 **4. Frontend Pipeline** (runs if `apps/kitchen_mate/` changed)
-- `frontend-lint`: Runs ESLint
-- `frontend-build`: Validates TypeScript compilation and Vite build
+- `frontend`: Runs ESLint and builds with Vite (validates TypeScript compilation)
 
 **5. Workspace Checks** (always runs)
 - `workspace-lint`: Validates workspace configuration
 - Checks `uv.lock` is up to date
 
-### Docker Workflow (docker.yml)
-
-Builds and pushes Docker images to GitHub Container Registry:
-
-- **Triggers**: Pushes to main branch and version tags (`v*.*.*`)
-- **Multi-platform**: Builds for linux/amd64 and linux/arm64
-- **Image**: `ghcr.io/<owner>/kitchenmate`
-- **Tags**: Branch name, version tags, git SHA
-- **Caching**: Uses GitHub Actions cache for faster builds
+**6. Deployment** (runs on push to main after CI passes)
+- `deploy`: Triggers Render deploy hook when app code changes
 
 ### Path Filters
 
@@ -361,14 +353,36 @@ Changes to these paths trigger backend and frontend pipelines:
 - `pyproject.toml` (root)
 - `uv.lock`
 
-### Workflow Notes
+### CI Workflow Notes
 
 - **Efficiency**: Only runs necessary tests based on changed files
 - **Dependencies**: Lint jobs must pass before tests/builds run
 - **Coverage**: Only uploaded from Python 3.14 runs
 - **Caching**: uv and npm dependencies are cached for faster runs
 
-## Workflow Notes
+## Deployment
+
+The application is deployed to [Render](https://render.com) using Docker.
+
+### Configuration
+
+- **`render.yaml`**: Infrastructure as Code blueprint defining the web service
+- **Dockerfile**: Multi-stage build (Node for frontend, Python for backend)
+- **Deploy hook**: GitHub Actions triggers deployment after CI passes
+
+### Environment Variables (set in Render dashboard)
+
+- `ANTHROPIC_API_KEY`: API key for LLM-based recipe extraction
+- `LLM_ALLOWED_IPS`: Comma-separated IPs/CIDR ranges allowed to use LLM fallback
+
+### Deployment Flow
+
+1. Push to `main` branch
+2. CI runs (lint, test, build)
+3. If CI passes and app code changed, deploy job triggers Render deploy hook
+4. Render builds Docker image and deploys
+
+## Development Notes
 
 ### Adding New Features
 
