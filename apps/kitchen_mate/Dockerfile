@@ -23,10 +23,13 @@ WORKDIR /app
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
-# Copy recipe-clipper library (path matches pyproject.toml: ../../packages/recipe_clipper)
+# Copy workspace configuration (required for uv to resolve workspace members)
+COPY pyproject.toml uv.lock ./
+
+# Copy recipe-clipper library (workspace member)
 COPY packages/recipe_clipper/ packages/recipe_clipper/
 
-# Copy app files (maintain directory structure for relative path resolution)
+# Copy app files (workspace member)
 COPY apps/kitchen_mate/ apps/kitchen_mate/
 
 # Copy built frontend from stage 1
