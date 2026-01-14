@@ -35,9 +35,7 @@ class LLMNotAllowedError(Exception):
     pass
 
 
-def _check_llm_allowed(
-    client_ip: str | None, api_key: str | None, allowed_ips: str | None
-) -> None:
+def _check_llm_allowed(client_ip: str | None, api_key: str | None, allowed_ips: str | None) -> None:
     """Check if LLM fallback is allowed. Raises appropriate errors if not."""
     logger.info("LLM fallback attempted from IP: %s", client_ip)
     if not api_key:
