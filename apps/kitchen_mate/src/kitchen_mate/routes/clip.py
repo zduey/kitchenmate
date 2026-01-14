@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from typing import Annotated, AsyncGenerator
+
+logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
@@ -26,6 +29,26 @@ from kitchen_mate.schemas import ClipRequest
 router = APIRouter()
 
 
+class LLMNotAllowedError(Exception):
+    """Raised when LLM fallback is not allowed for the client."""
+
+    pass
+
+
+def _check_llm_allowed(
+    client_ip: str | None, api_key: str | None, allowed_ips: str | None
+) -> None:
+    """Check if LLM fallback is allowed. Raises appropriate errors if not."""
+    logger.info("LLM fallback attempted from IP: %s", client_ip)
+    if not api_key:
+        logger.warning("LLM fallback rejected: no API key configured")
+        raise LLMError("LLM fallback requires ANTHROPIC_API_KEY environment variable")
+    if not client_ip or not is_ip_allowed(client_ip, allowed_ips):
+        logger.warning("LLM fallback rejected: IP %s not in allowed list", client_ip)
+        raise LLMNotAllowedError("LLM fallback not allowed from this IP address")
+    logger.info("LLM fallback allowed for IP: %s", client_ip)
+
+
 def _sse_event(data: dict) -> str:
     """Format a dict as an SSE event."""
     return f"data: {json.dumps(data)}\n\n"
@@ -36,6 +59,8 @@ async def _stream_clip_recipe(
     timeout: int,
     use_llm_fallback: bool,
     api_key: str | None,
+    client_ip: str | None,
+    allowed_ips: str | None,
 ) -> AsyncGenerator[str, None]:
     """Stream recipe extraction with progress updates."""
     try:
@@ -50,6 +75,9 @@ async def _stream_clip_recipe(
         except RecipeParsingError:
             if not use_llm_fallback:
                 raise
+
+            # Check LLM access only when actually needed
+            _check_llm_allowed(client_ip, api_key, allowed_ips)
 
             # Stage 3: LLM fallback
             yield _sse_event({"stage": "llm", "message": "Using AI extraction..."})
@@ -71,6 +99,8 @@ async def _stream_clip_recipe(
         yield _sse_event(
             {"stage": "error", "message": f"Failed to fetch URL: {error}", "status": 502}
         )
+    except LLMNotAllowedError as error:
+        yield _sse_event({"stage": "error", "message": str(error), "status": 403})
     except (RecipeParsingError, LLMError) as error:
         yield _sse_event(
             {"stage": "error", "message": f"Failed to parse recipe: {error}", "status": 500}
@@ -90,21 +120,9 @@ async def clip_recipe_endpoint(
     Returns the recipe data as JSON. If stream=true, returns Server-Sent Events
     with progress updates.
     """
-    api_key = settings.anthropic_api_key if clip_request.use_llm_fallback else None
-
-    if clip_request.use_llm_fallback and not api_key:
-        raise HTTPException(
-            status_code=400,
-            detail="LLM fallback requires ANTHROPIC_API_KEY environment variable",
-        )
-
-    if clip_request.use_llm_fallback:
-        client_ip = request.client.host if request.client else None
-        if not client_ip or not is_ip_allowed(client_ip, settings.llm_allowed_ips):
-            raise HTTPException(
-                status_code=403,
-                detail="LLM fallback not allowed from this IP address",
-            )
+    api_key = settings.anthropic_api_key
+    client_ip = request.client.host if request.client else None
+    allowed_ips = settings.llm_allowed_ips
 
     if clip_request.stream:
         return StreamingResponse(
@@ -113,6 +131,8 @@ async def clip_recipe_endpoint(
                 clip_request.timeout,
                 clip_request.use_llm_fallback,
                 api_key,
+                client_ip,
+                allowed_ips,
             ),
             media_type="text/event-stream",
         )
@@ -127,6 +147,9 @@ async def clip_recipe_endpoint(
         except RecipeParsingError:
             if not clip_request.use_llm_fallback:
                 raise
+            # Check LLM access only when actually needed
+            _check_llm_allowed(client_ip, api_key, allowed_ips)
+
             from recipe_clipper.parsers.llm_parser import parse_with_claude
 
             recipe = await asyncio.to_thread(parse_with_claude, str(clip_request.url), api_key)
@@ -134,6 +157,8 @@ async def clip_recipe_endpoint(
         raise HTTPException(status_code=404, detail=str(error)) from error
     except NetworkError as error:
         raise HTTPException(status_code=502, detail=f"Failed to fetch URL: {error}") from error
+    except LLMNotAllowedError as error:
+        raise HTTPException(status_code=403, detail=str(error)) from error
     except (RecipeParsingError, LLMError) as error:
         raise HTTPException(status_code=500, detail=f"Failed to parse recipe: {error}") from error
     except RecipeClipperError as error:

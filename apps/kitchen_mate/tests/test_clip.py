@@ -79,13 +79,20 @@ def test_clip_recipe_network_error(client: TestClient) -> None:
 def test_clip_recipe_llm_fallback_without_api_key(
     client: TestClient, settings_without_api_key: None
 ) -> None:
-    """Test that LLM fallback fails without API key."""
-    response = client.post(
-        "/api/clip",
-        json={"url": "https://example.com/recipe", "use_llm_fallback": True},
-    )
+    """Test that LLM fallback fails without API key when parsing fails."""
+    mock_response = MagicMock()
 
-    assert response.status_code == 400
+    with patch("kitchen_mate.routes.clip.fetch_url", return_value=mock_response):
+        with patch(
+            "kitchen_mate.routes.clip.parse_with_recipe_scrapers",
+            side_effect=RecipeParsingError("Not supported"),
+        ):
+            response = client.post(
+                "/api/clip",
+                json={"url": "https://example.com/recipe", "use_llm_fallback": True},
+            )
+
+    assert response.status_code == 500
     assert "ANTHROPIC_API_KEY" in response.json()["detail"]
 
 
@@ -113,11 +120,17 @@ def test_clip_recipe_llm_fallback_ip_not_allowed(
     client: TestClient, settings_with_api_key_and_ip_whitelist: None
 ) -> None:
     """Test that LLM fallback is blocked when IP is not in whitelist."""
-    # TestClient uses 'testclient' as the host, which won't match the whitelist
-    response = client.post(
-        "/api/clip",
-        json={"url": "https://example.com/recipe", "use_llm_fallback": True},
-    )
+    mock_response = MagicMock()
+
+    with patch("kitchen_mate.routes.clip.fetch_url", return_value=mock_response):
+        with patch(
+            "kitchen_mate.routes.clip.parse_with_recipe_scrapers",
+            side_effect=RecipeParsingError("Not supported"),
+        ):
+            response = client.post(
+                "/api/clip",
+                json={"url": "https://example.com/recipe", "use_llm_fallback": True},
+            )
 
     assert response.status_code == 403
     assert "not allowed from this IP" in response.json()["detail"]
@@ -127,10 +140,17 @@ def test_clip_recipe_llm_fallback_no_whitelist_blocks_all(
     client: TestClient, settings_with_api_key_no_whitelist: None
 ) -> None:
     """Test that LLM fallback is blocked when no whitelist is configured."""
-    response = client.post(
-        "/api/clip",
-        json={"url": "https://example.com/recipe", "use_llm_fallback": True},
-    )
+    mock_response = MagicMock()
+
+    with patch("kitchen_mate.routes.clip.fetch_url", return_value=mock_response):
+        with patch(
+            "kitchen_mate.routes.clip.parse_with_recipe_scrapers",
+            side_effect=RecipeParsingError("Not supported"),
+        ):
+            response = client.post(
+                "/api/clip",
+                json={"url": "https://example.com/recipe", "use_llm_fallback": True},
+            )
 
     assert response.status_code == 403
     assert "not allowed from this IP" in response.json()["detail"]
