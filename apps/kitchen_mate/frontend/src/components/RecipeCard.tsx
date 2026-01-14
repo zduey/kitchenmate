@@ -1,37 +1,11 @@
-import { useState } from "react";
-import { Recipe, OutputFormat } from "../types/recipe";
-import {
-  downloadRecipe,
-  triggerDownload,
-  getFileExtension,
-  ClipError,
-} from "../api/clip";
+import { Recipe } from "../types/recipe";
+import { ExportDropdown } from "./ExportDropdown";
 
 interface RecipeCardProps {
   recipe: Recipe;
-  sourceUrl: string;
 }
 
-export function RecipeCard({ recipe, sourceUrl }: RecipeCardProps) {
-  const [downloading, setDownloading] = useState<OutputFormat | null>(null);
-
-  const handleDownload = async (format: OutputFormat) => {
-    setDownloading(format);
-    try {
-      const blob = await downloadRecipe(sourceUrl, format);
-      const extension = getFileExtension(format);
-      const filename = `${recipe.title.toLowerCase().replace(/\s+/g, "-")}.${extension}`;
-      triggerDownload(blob, filename);
-    } catch (error) {
-      console.error("Download failed:", error);
-      alert(
-        error instanceof ClipError ? error.message : "Failed to download recipe"
-      );
-    } finally {
-      setDownloading(null);
-    }
-  };
-
+export function RecipeCard({ recipe }: RecipeCardProps) {
   const formatTime = (minutes: number): string => {
     if (minutes < 60) {
       return `${minutes} min`;
@@ -206,28 +180,8 @@ export function RecipeCard({ recipe, sourceUrl }: RecipeCardProps) {
           </ol>
         </div>
 
-        <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-200">
-          <button
-            onClick={() => handleDownload("text")}
-            disabled={downloading !== null}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-colors"
-          >
-            {downloading === "text" ? "Downloading..." : "Download Text"}
-          </button>
-          <button
-            onClick={() => handleDownload("json")}
-            disabled={downloading !== null}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-colors"
-          >
-            {downloading === "json" ? "Downloading..." : "Download JSON"}
-          </button>
-          <button
-            onClick={() => handleDownload("markdown")}
-            disabled={downloading !== null}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-colors"
-          >
-            {downloading === "markdown" ? "Downloading..." : "Download MD"}
-          </button>
+        <div className="flex justify-end pt-4 border-t border-gray-200">
+          <ExportDropdown recipe={recipe} />
         </div>
       </div>
     </div>

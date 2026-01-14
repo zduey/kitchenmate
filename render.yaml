@@ -1,0 +1,26 @@
+# Render Blueprint - Infrastructure as Code
+# https://render.com/docs/blueprint-spec
+#
+# Setup:
+# 1. Create a new Blueprint in Render dashboard, connect to this repo
+# 2. After service is created, go to Settings > Build & Deploy
+# 3. Disable "Auto-Deploy" (we deploy via GitHub Actions after CI passes)
+# 4. Copy the "Deploy Hook" URL
+# 5. Add it as a GitHub secret: RENDER_DEPLOY_HOOK_URL
+# 6. Set ANTHROPIC_API_KEY and LLM_ALLOWED_IPS in Render Environment
+
+services:
+  - type: web
+    name: kitchenmate
+    runtime: docker
+    dockerfilePath: ./apps/kitchen_mate/Dockerfile
+    dockerContext: .
+    repo: https://github.com/zduey/kitchenmate
+    branch: main
+    healthCheckPath: /health
+    autoDeploy: false  # Deploy via GitHub Actions after CI passes
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false  # Set manually in Render dashboard (secret)
+      - key: LLM_ALLOWED_IPS
+        sync: false  # Set manually in Render dashboard

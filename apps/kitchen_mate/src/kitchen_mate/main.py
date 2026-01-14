@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from kitchen_mate.routes import clip
+from kitchen_mate.routes import clip, convert
 
 app = FastAPI(
     title="KitchenMate API",
@@ -18,6 +18,7 @@ app = FastAPI(
 )
 
 app.include_router(clip.router)
+app.include_router(convert.router)
 
 
 @app.get("/health")
@@ -30,9 +31,7 @@ async def health_check() -> dict[str, str]:
 frontend_dist = Path(__file__).parent.parent.parent / "frontend" / "dist"
 if frontend_dist.exists():
     # Serve static assets (JS, CSS, etc.)
-    app.mount(
-        "/assets", StaticFiles(directory=frontend_dist / "assets"), name="assets"
-    )
+    app.mount("/assets", StaticFiles(directory=frontend_dist / "assets"), name="assets")
 
     @app.get("/")
     async def serve_frontend() -> FileResponse:

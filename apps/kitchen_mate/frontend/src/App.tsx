@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Recipe } from "./types/recipe";
-import { clipRecipe, ClipError } from "./api/clip";
+import { clipRecipeWithProgress, ClipError } from "./api/clip";
 import { RecipeForm } from "./components/RecipeForm";
 import { RecipeCard } from "./components/RecipeCard";
 import { LoadingSpinner } from "./components/LoadingSpinner";
@@ -8,7 +8,7 @@ import { ErrorMessage } from "./components/ErrorMessage";
 
 type AppState =
   | { status: "idle" }
-  | { status: "loading"; url: string }
+  | { status: "loading"; url: string; progressMessage: string }
   | { status: "success"; url: string; recipe: Recipe }
   | { status: "error"; url: string; message: string };
 
@@ -16,10 +16,18 @@ function App() {
   const [state, setState] = useState<AppState>({ status: "idle" });
 
   const handleSubmit = async (url: string) => {
-    setState({ status: "loading", url });
+    setState({ status: "loading", url, progressMessage: "Starting..." });
 
     try {
-      const recipe = await clipRecipe(url);
+      const recipe = await clipRecipeWithProgress(url, (event) => {
+        if (event.stage !== "complete" && event.stage !== "error") {
+          setState((prev) =>
+            prev.status === "loading"
+              ? { ...prev, progressMessage: event.message }
+              : prev
+          );
+        }
+      });
       setState({ status: "success", url, recipe });
     } catch (error) {
       const message =
@@ -53,15 +61,15 @@ function App() {
           />
         </div>
 
-        {state.status === "loading" && <LoadingSpinner />}
+        {state.status === "loading" && (
+          <LoadingSpinner message={state.progressMessage} />
+        )}
 
         {state.status === "error" && (
           <ErrorMessage message={state.message} onRetry={handleRetry} />
         )}
 
-        {state.status === "success" && (
-          <RecipeCard recipe={state.recipe} sourceUrl={state.url} />
-        )}
+        {state.status === "success" && <RecipeCard recipe={state.recipe} />}
       </div>
     </div>
   );

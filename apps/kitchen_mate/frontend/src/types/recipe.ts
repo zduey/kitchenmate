@@ -28,12 +28,36 @@ export type OutputFormat = "json" | "text" | "markdown";
 
 export interface ClipRequest {
   url: string;
-  format?: OutputFormat;
   timeout?: number;
   use_llm_fallback?: boolean;
-  download?: boolean;
+  stream?: boolean;
+}
+
+export interface ConvertRequest {
+  recipe: Recipe;
+  format: "text" | "markdown";
 }
 
 export interface ApiError {
   detail: string;
 }
+
+export type ClipStage = "fetching" | "parsing" | "llm" | "complete" | "error";
+
+export interface ClipProgressEvent {
+  stage: Exclude<ClipStage, "complete" | "error">;
+  message: string;
+}
+
+export interface ClipCompleteEvent {
+  stage: "complete";
+  recipe: Recipe;
+}
+
+export interface ClipErrorEvent {
+  stage: "error";
+  message: string;
+  status: number;
+}
+
+export type ClipStreamEvent = ClipProgressEvent | ClipCompleteEvent | ClipErrorEvent;

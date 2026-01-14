@@ -38,8 +38,9 @@ WORKDIR /app/apps/kitchen_mate
 # Install dependencies
 RUN uv sync --frozen
 
-# Expose the default port
-EXPOSE 8000
+# Default port (Render sets PORT environment variable)
+ENV PORT=8000
+EXPOSE $PORT
 
-# Run the application
-CMD ["uv", "run", "uvicorn", "kitchen_mate.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the application (shell form to expand $PORT)
+CMD uv run uvicorn kitchen_mate.main:app --host 0.0.0.0 --port $PORT

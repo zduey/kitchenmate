@@ -108,14 +108,26 @@ The FastAPI backend provides HTTP access to recipe extraction:
 
 **Endpoint: `POST /clip`**
 
+Extracts a recipe from a URL and returns JSON.
+
 Request body:
 ```json
 {
   "url": "https://example.com/recipe",
-  "format": "json",           // "text" | "json" | "markdown"
   "timeout": 10,              // HTTP timeout in seconds
-  "use_llm_fallback": false,  // Enable LLM fallback
-  "download": false           // Return as file download
+  "use_llm_fallback": true    // Enable LLM fallback (default)
+}
+```
+
+**Endpoint: `POST /convert`**
+
+Converts a recipe to text or markdown format.
+
+Request body:
+```json
+{
+  "recipe": { ... },          // Recipe object from /clip
+  "format": "text"            // "text" | "markdown"
 }
 ```
 

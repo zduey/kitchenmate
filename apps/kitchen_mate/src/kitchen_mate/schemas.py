@@ -5,6 +5,7 @@ from __future__ import annotations
 from enum import Enum
 
 from pydantic import BaseModel, Field, HttpUrl
+from recipe_clipper.models import Recipe
 
 
 class OutputFormat(str, Enum):
@@ -19,15 +20,22 @@ class ClipRequest(BaseModel):
     """Request body for the /clip endpoint."""
 
     url: HttpUrl = Field(description="URL of the recipe page to extract")
-    format: OutputFormat = Field(
-        default=OutputFormat.json, description="Output format for the recipe data"
-    )
     timeout: int = Field(default=10, ge=1, le=60, description="HTTP timeout in seconds")
     use_llm_fallback: bool = Field(
-        default=False,
+        default=True,
         description="Enable LLM fallback for unsupported sites (requires API key)",
     )
-    download: bool = Field(default=False, description="Return response as a downloadable file")
+    stream: bool = Field(
+        default=False,
+        description="Stream progress updates via Server-Sent Events",
+    )
+
+
+class ConvertRequest(BaseModel):
+    """Request body for the /convert endpoint."""
+
+    recipe: Recipe = Field(description="Recipe data to convert")
+    format: OutputFormat = Field(description="Output format (text or markdown)")
 
 
 class ErrorResponse(BaseModel):

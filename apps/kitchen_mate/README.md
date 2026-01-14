@@ -59,15 +59,15 @@ Returns `{"status": "healthy"}` when the service is running.
 POST /clip
 ```
 
+Extracts a recipe from a URL and returns it as JSON.
+
 **Request Body:**
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `url` | string | required | URL of the recipe page |
-| `format` | string | `"json"` | Output format: `"json"`, `"text"`, or `"markdown"` |
 | `timeout` | integer | `10` | HTTP timeout in seconds (1-60) |
-| `use_llm_fallback` | boolean | `false` | Enable LLM parsing for unsupported sites |
-| `download` | boolean | `false` | Return response as file download |
+| `use_llm_fallback` | boolean | `true` | Enable LLM parsing for unsupported sites |
 
 **Example Request:**
 
@@ -77,7 +77,7 @@ curl -X POST http://localhost:8000/clip \
   -d '{"url": "https://www.allrecipes.com/recipe/10813/best-chocolate-chip-cookies/"}'
 ```
 
-**Example Response (JSON format):**
+**Example Response:**
 
 ```json
 {
@@ -102,7 +102,32 @@ curl -X POST http://localhost:8000/clip \
 }
 ```
 
-**Error Responses:**
+#### Convert Recipe Format
+
+```
+POST /convert
+```
+
+Converts a recipe to text or markdown format for download.
+
+**Request Body:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `recipe` | object | Recipe object (from `/clip` response) |
+| `format` | string | Output format: `"text"` or `"markdown"` |
+
+**Example Request:**
+
+```bash
+curl -X POST http://localhost:8000/convert \
+  -H "Content-Type: application/json" \
+  -d '{"recipe": {"title": "My Recipe", "ingredients": [], "instructions": []}, "format": "markdown"}'
+```
+
+**Response:** Returns the formatted recipe as a downloadable file.
+
+#### Error Responses
 
 | Status | Description |
 |--------|-------------|

@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
 
-from kitchen_mate.config import Settings
+from kitchen_mate.config import Settings, get_settings
 from kitchen_mate.main import app
 
 if TYPE_CHECKING:
@@ -23,16 +22,54 @@ def client() -> Generator[TestClient, None, None]:
 
 
 @pytest.fixture
-def settings_with_api_key() -> Generator[None, None, None]:
+def settings_with_api_key(client: TestClient) -> Generator[None, None, None]:
     """Override settings to include an API key."""
     test_settings = Settings(anthropic_api_key="test-api-key")
-    with patch("kitchen_mate.routes.clip.get_settings", return_value=test_settings):
-        yield
+    app.dependency_overrides[get_settings] = lambda: test_settings
+    yield
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture
-def settings_without_api_key() -> Generator[None, None, None]:
+def settings_without_api_key(client: TestClient) -> Generator[None, None, None]:
     """Override settings to have no API key."""
     test_settings = Settings(anthropic_api_key=None)
-    with patch("kitchen_mate.routes.clip.get_settings", return_value=test_settings):
-        yield
+    app.dependency_overrides[get_settings] = lambda: test_settings
+    yield
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def settings_with_api_key_and_ip_whitelist(client: TestClient) -> Generator[None, None, None]:
+    """Override settings to include API key and IP whitelist."""
+    test_settings = Settings(
+        anthropic_api_key="test-api-key",
+        llm_allowed_ips="127.0.0.1,192.168.1.0/24",
+    )
+    app.dependency_overrides[get_settings] = lambda: test_settings
+    yield
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def settings_with_api_key_no_whitelist(client: TestClient) -> Generator[None, None, None]:
+    """Override settings to include API key but no IP whitelist (all blocked)."""
+    test_settings = Settings(
+        anthropic_api_key="test-api-key",
+        llm_allowed_ips=None,
+    )
+    app.dependency_overrides[get_settings] = lambda: test_settings
+    yield
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def settings_with_api_key_allow_all(client: TestClient) -> Generator[None, None, None]:
+    """Override settings to include API key with wildcard IP whitelist."""
+    test_settings = Settings(
+        anthropic_api_key="test-api-key",
+        llm_allowed_ips="0.0.0.0/0",
+    )
+    app.dependency_overrides[get_settings] = lambda: test_settings
+    yield
+    app.dependency_overrides.clear()
