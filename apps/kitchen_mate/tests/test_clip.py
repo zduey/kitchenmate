@@ -133,7 +133,7 @@ def test_clip_recipe_llm_fallback_ip_not_allowed(
             )
 
     assert response.status_code == 403
-    assert "not allowed from this IP" in response.json()["detail"]
+    assert "not enabled" in response.json()["detail"]
 
 
 def test_clip_recipe_llm_fallback_no_whitelist_blocks_all(
@@ -153,7 +153,7 @@ def test_clip_recipe_llm_fallback_no_whitelist_blocks_all(
             )
 
     assert response.status_code == 403
-    assert "not allowed from this IP" in response.json()["detail"]
+    assert "not enabled" in response.json()["detail"]
 
 
 def test_clip_recipe_llm_fallback_ip_allowed(

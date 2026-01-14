@@ -35,6 +35,23 @@ class LLMNotAllowedError(Exception):
     pass
 
 
+def _get_client_ip(request: Request) -> str | None:
+    """Get the real client IP, checking X-Forwarded-For header for proxied requests."""
+    # Check X-Forwarded-For header (set by reverse proxies like Render's load balancer)
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        # X-Forwarded-For can contain multiple IPs: "client, proxy1, proxy2"
+        # The first one is the original client
+        client_ip = forwarded_for.split(",")[0].strip()
+        return client_ip
+
+    # Fall back to direct connection IP
+    if request.client:
+        return request.client.host
+
+    return None
+
+
 def _check_llm_allowed(client_ip: str | None, api_key: str | None, allowed_ips: str | None) -> None:
     """Check if LLM fallback is allowed. Raises appropriate errors if not."""
     logger.info("LLM fallback attempted from IP: %s", client_ip)
@@ -43,7 +60,7 @@ def _check_llm_allowed(client_ip: str | None, api_key: str | None, allowed_ips: 
         raise LLMError("LLM fallback requires ANTHROPIC_API_KEY environment variable")
     if not client_ip or not is_ip_allowed(client_ip, allowed_ips):
         logger.warning("LLM fallback rejected: IP %s not in allowed list", client_ip)
-        raise LLMNotAllowedError("LLM fallback not allowed from this IP address")
+        raise LLMNotAllowedError("LLM fallback feature not enabled")
     logger.info("LLM fallback allowed for IP: %s", client_ip)
 
 
@@ -119,7 +136,7 @@ async def clip_recipe_endpoint(
     with progress updates.
     """
     api_key = settings.anthropic_api_key
-    client_ip = request.client.host if request.client else None
+    client_ip = _get_client_ip(request)
     allowed_ips = settings.llm_allowed_ips
 
     if clip_request.stream:
