@@ -9,7 +9,7 @@ authors = [
 ]
 
 dependencies = [
-    "recipe-clipper",
+    "recipe-clipper[llm-anthropic]",
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
     "pydantic-settings>=2.0.0",
