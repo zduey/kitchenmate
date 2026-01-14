@@ -1,4 +1,4 @@
-"""Tests for the /convert endpoint."""
+"""Tests for the /api/convert endpoint."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ def test_convert_recipe_to_text(client: TestClient) -> None:
     }
 
     response = client.post(
-        "/convert",
+        "/api/convert",
         json={"recipe": recipe, "format": "text"},
     )
 
@@ -38,7 +38,7 @@ def test_convert_recipe_to_markdown(client: TestClient) -> None:
     }
 
     response = client.post(
-        "/convert",
+        "/api/convert",
         json={"recipe": recipe, "format": "markdown"},
     )
 
@@ -59,7 +59,7 @@ def test_convert_recipe_json_format_rejected(client: TestClient) -> None:
     }
 
     response = client.post(
-        "/convert",
+        "/api/convert",
         json={"recipe": recipe, "format": "json"},
     )
 
@@ -82,7 +82,7 @@ def test_convert_recipe_with_metadata(client: TestClient) -> None:
     }
 
     response = client.post(
-        "/convert",
+        "/api/convert",
         json={"recipe": recipe, "format": "text"},
     )
 
@@ -94,7 +94,7 @@ def test_convert_recipe_with_metadata(client: TestClient) -> None:
 def test_convert_recipe_missing_required_fields(client: TestClient) -> None:
     """Test validation of missing required fields."""
     response = client.post(
-        "/convert",
+        "/api/convert",
         json={"recipe": {}, "format": "text"},
     )
 

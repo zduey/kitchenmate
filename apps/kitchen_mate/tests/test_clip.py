@@ -1,4 +1,4 @@
-"""Tests for the /clip endpoint."""
+"""Tests for the /api/clip endpoint."""
 
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ def test_clip_recipe_returns_json(client: TestClient) -> None:
     with patch("kitchen_mate.routes.clip.fetch_url", return_value=mock_response):
         with patch("kitchen_mate.routes.clip.parse_with_recipe_scrapers", return_value=mock_recipe):
             response = client.post(
-                "/clip",
+                "/api/clip",
                 json={"url": "https://example.com/recipe", "use_llm_fallback": False},
             )
 
@@ -53,7 +53,7 @@ def test_clip_recipe_not_found(client: TestClient) -> None:
             side_effect=RecipeParsingError("Recipe not found"),
         ):
             response = client.post(
-                "/clip",
+                "/api/clip",
                 json={"url": "https://example.com/recipe", "use_llm_fallback": False},
             )
 
@@ -68,7 +68,7 @@ def test_clip_recipe_network_error(client: TestClient) -> None:
         side_effect=NetworkError("Connection failed"),
     ):
         response = client.post(
-            "/clip",
+            "/api/clip",
             json={"url": "https://example.com/recipe", "use_llm_fallback": False},
         )
 
@@ -81,7 +81,7 @@ def test_clip_recipe_llm_fallback_without_api_key(
 ) -> None:
     """Test that LLM fallback fails without API key."""
     response = client.post(
-        "/clip",
+        "/api/clip",
         json={"url": "https://example.com/recipe", "use_llm_fallback": True},
     )
 
@@ -92,7 +92,7 @@ def test_clip_recipe_llm_fallback_without_api_key(
 def test_clip_recipe_invalid_url(client: TestClient) -> None:
     """Test validation of invalid URL."""
     response = client.post(
-        "/clip",
+        "/api/clip",
         json={"url": "not-a-valid-url", "use_llm_fallback": False},
     )
 
@@ -102,7 +102,7 @@ def test_clip_recipe_invalid_url(client: TestClient) -> None:
 def test_clip_recipe_timeout_bounds(client: TestClient) -> None:
     """Test validation of timeout bounds."""
     response = client.post(
-        "/clip",
+        "/api/clip",
         json={"url": "https://example.com/recipe", "timeout": 100, "use_llm_fallback": False},
     )
 
@@ -115,7 +115,7 @@ def test_clip_recipe_llm_fallback_ip_not_allowed(
     """Test that LLM fallback is blocked when IP is not in whitelist."""
     # TestClient uses 'testclient' as the host, which won't match the whitelist
     response = client.post(
-        "/clip",
+        "/api/clip",
         json={"url": "https://example.com/recipe", "use_llm_fallback": True},
     )
 
@@ -128,7 +128,7 @@ def test_clip_recipe_llm_fallback_no_whitelist_blocks_all(
 ) -> None:
     """Test that LLM fallback is blocked when no whitelist is configured."""
     response = client.post(
-        "/clip",
+        "/api/clip",
         json={"url": "https://example.com/recipe", "use_llm_fallback": True},
     )
 
@@ -156,7 +156,7 @@ def test_clip_recipe_llm_fallback_ip_allowed(
                         source_url="https://example.com/recipe",
                     )
                     response = client.post(
-                        "/clip",
+                        "/api/clip",
                         json={"url": "https://example.com/recipe", "use_llm_fallback": True},
                     )
 
@@ -179,7 +179,7 @@ def test_clip_recipe_no_llm_fallback_ignores_whitelist(
     with patch("kitchen_mate.routes.clip.fetch_url", return_value=mock_response):
         with patch("kitchen_mate.routes.clip.parse_with_recipe_scrapers", return_value=mock_recipe):
             response = client.post(
-                "/clip",
+                "/api/clip",
                 json={"url": "https://example.com/recipe", "use_llm_fallback": False},
             )
 

@@ -17,8 +17,8 @@ app = FastAPI(
     version="0.1.0",
 )
 
-app.include_router(clip.router)
-app.include_router(convert.router)
+app.include_router(clip.router, prefix="/api")
+app.include_router(convert.router, prefix="/api")
 
 
 @app.get("/health")
