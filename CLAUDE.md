@@ -299,7 +299,7 @@ uv run mypy packages/recipe_clipper/src/
 ## Python Version Support
 
 - **Development**: Python 3.14 (latest)
-- **Library compatibility**: Python >=3.9
+- **Library compatibility**: Python >=3.10
 - **Managed by uv**: Virtual environment with Python 3.14
 
 ## CI/CD - GitHub Actions
@@ -311,7 +311,7 @@ The repository uses GitHub Actions for continuous integration with smart path fi
 - **Separate jobs for library, backend, and frontend**: Only runs relevant checks when code changes
 - **Path-based triggers**: Uses `dorny/paths-filter` to detect which components changed
 - **Lint before test/build**: Ensures code quality before running tests
-- **Multi-version testing**: Library tests run on Python 3.9-3.14
+- **Multi-version testing**: Library tests run on Python 3.10-3.14
 - **Docker builds**: Automated image builds pushed to GitHub Container Registry
 
 ### Workflow Jobs (ci.yml)
@@ -323,7 +323,7 @@ The repository uses GitHub Actions for continuous integration with smart path fi
 
 **2. Library Pipeline** (runs if `packages/recipe_clipper/` changed)
 - `library-lint`: Runs ruff format check and lint
-- `library-test`: Runs pytest on Python 3.9-3.14
+- `library-test`: Runs pytest on Python 3.10-3.14
   - Includes coverage reporting
   - Uploads coverage to Codecov
 

@@ -15,7 +15,7 @@ Examples: `v0.1.0`, `v0.2.0`, `v1.0.0`, `v1.2.3`
 
 The publish workflow (`.github/workflows/publish.yml`) automatically:
 1. ✅ Validates that the git tag matches `pyproject.toml` version
-2. ✅ Runs full test suite across Python 3.9-3.14
+2. ✅ Runs full test suite across Python 3.10-3.14
 3. ✅ Runs linting checks
 4. ✅ Builds source distribution and wheel
 5. ✅ Publishes to PyPI using trusted publishing
