@@ -7,8 +7,6 @@ import json
 import logging
 from typing import Annotated, AsyncGenerator
 
-logger = logging.getLogger(__name__)
-
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
 
@@ -25,6 +23,8 @@ from recipe_clipper.parsers.recipe_scrapers_parser import parse_with_recipe_scra
 
 from kitchen_mate.config import Settings, get_settings, is_ip_allowed
 from kitchen_mate.schemas import ClipRequest
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
