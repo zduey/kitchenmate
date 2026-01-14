@@ -1,10 +1,22 @@
 """Parser using the recipe-scrapers library."""
 
+from typing import Callable, TypeVar
+
 from recipe_scrapers import scrape_html
 
 from recipe_clipper.models import Recipe, Ingredient, RecipeMetadata
 from recipe_clipper.http import HttpResponse
 from recipe_clipper.exceptions import RecipeParsingError
+
+T = TypeVar("T")
+
+
+def _safe_get(getter: Callable[[], T]) -> T | None:
+    """Safely call a scraper method, returning None if the field is not found."""
+    try:
+        return getter()
+    except Exception:
+        return None
 
 
 def parse_with_recipe_scrapers(response: HttpResponse) -> Recipe:
@@ -31,13 +43,14 @@ def parse_with_recipe_scrapers(response: HttpResponse) -> Recipe:
 
     ingredients = [Ingredient(name=ingredient) for ingredient in scraper.ingredients()]
 
+    category = _safe_get(scraper.category)
     metadata = RecipeMetadata(
-        author=scraper.author(),
-        servings=scraper.yields(),
-        prep_time=scraper.prep_time(),
-        cook_time=scraper.cook_time(),
-        total_time=scraper.total_time(),
-        categories=[scraper.category()] if scraper.category() else None,
+        author=_safe_get(scraper.author),
+        servings=_safe_get(scraper.yields),
+        prep_time=_safe_get(scraper.prep_time),
+        cook_time=_safe_get(scraper.cook_time),
+        total_time=_safe_get(scraper.total_time),
+        categories=[category] if category else None,
     )
 
     return Recipe(
