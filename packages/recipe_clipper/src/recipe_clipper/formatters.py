@@ -154,13 +154,21 @@ def _generate_recipe_html(recipe: Recipe, include_image: bool = True) -> str:
         if recipe.metadata.servings:
             metadata_items.append(f"<li><strong>Servings:</strong> {recipe.metadata.servings}</li>")
         if recipe.metadata.prep_time:
-            metadata_items.append(f"<li><strong>Prep Time:</strong> {recipe.metadata.prep_time} minutes</li>")
+            metadata_items.append(
+                f"<li><strong>Prep Time:</strong> {recipe.metadata.prep_time} minutes</li>"
+            )
         if recipe.metadata.cook_time:
-            metadata_items.append(f"<li><strong>Cook Time:</strong> {recipe.metadata.cook_time} minutes</li>")
+            metadata_items.append(
+                f"<li><strong>Cook Time:</strong> {recipe.metadata.cook_time} minutes</li>"
+            )
         if recipe.metadata.total_time:
-            metadata_items.append(f"<li><strong>Total Time:</strong> {recipe.metadata.total_time} minutes</li>")
+            metadata_items.append(
+                f"<li><strong>Total Time:</strong> {recipe.metadata.total_time} minutes</li>"
+            )
         if recipe.metadata.categories:
-            metadata_items.append(f"<li><strong>Categories:</strong> {', '.join(recipe.metadata.categories)}</li>")
+            metadata_items.append(
+                f"<li><strong>Categories:</strong> {', '.join(recipe.metadata.categories)}</li>"
+            )
         if metadata_items:
             metadata_html = f"<ul class='metadata'>{''.join(metadata_items)}</ul>"
 
@@ -172,9 +180,7 @@ def _generate_recipe_html(recipe: Recipe, include_image: bool = True) -> str:
         f"<li>{_format_ingredient(ing)}</li>" for ing in recipe.ingredients
     )
 
-    instructions_html = "\n".join(
-        f"<li>{instruction}</li>" for instruction in recipe.instructions
-    )
+    instructions_html = "\n".join(f"<li>{instruction}</li>" for instruction in recipe.instructions)
 
     source_html = ""
     if recipe.source_url:
@@ -337,8 +343,12 @@ def _render_recipe_image(
 
     # Try to get a font, fall back to default
     try:
-        title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", title_size)
-        heading_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", heading_size)
+        title_font = ImageFont.truetype(
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", title_size
+        )
+        heading_font = ImageFont.truetype(
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", heading_size
+        )
         text_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", text_size)
     except OSError:
         title_font = ImageFont.load_default()
@@ -562,7 +572,7 @@ def format_recipe_svg(recipe: Recipe, width: int = 800) -> str:
     elements.append(
         f'<text x="{padding}" y="{y + title_size}" '
         f'font-family="sans-serif" font-size="{title_size}" font-weight="bold" fill="#2c3e50">'
-        f'{_escape_svg(recipe.title)}</text>'
+        f"{_escape_svg(recipe.title)}</text>"
     )
     y += title_size + 30
 
@@ -581,14 +591,14 @@ def format_recipe_svg(recipe: Recipe, width: int = 800) -> str:
             elements.append(
                 f'<text x="{padding}" y="{y + heading_size}" '
                 f'font-family="sans-serif" font-size="{heading_size}" font-weight="bold" fill="#34495e">'
-                f'Metadata</text>'
+                f"Metadata</text>"
             )
             y += heading_size + 15
             for line in metadata_lines:
                 elements.append(
                     f'<text x="{padding + 10}" y="{y + text_size}" '
                     f'font-family="sans-serif" font-size="{text_size}" fill="#666">'
-                    f'{_escape_svg(line)}</text>'
+                    f"{_escape_svg(line)}</text>"
                 )
                 y += line_height
             y += 15
@@ -597,7 +607,7 @@ def format_recipe_svg(recipe: Recipe, width: int = 800) -> str:
     elements.append(
         f'<text x="{padding}" y="{y + heading_size}" '
         f'font-family="sans-serif" font-size="{heading_size}" font-weight="bold" fill="#34495e">'
-        f'Ingredients</text>'
+        f"Ingredients</text>"
     )
     y += heading_size + 15
     for ingredient in recipe.ingredients:
@@ -605,7 +615,7 @@ def format_recipe_svg(recipe: Recipe, width: int = 800) -> str:
         elements.append(
             f'<text x="{padding + 10}" y="{y + text_size}" '
             f'font-family="sans-serif" font-size="{text_size}" fill="#333">'
-            f'{_escape_svg(text)}</text>'
+            f"{_escape_svg(text)}</text>"
         )
         y += line_height
     y += 15
@@ -614,7 +624,7 @@ def format_recipe_svg(recipe: Recipe, width: int = 800) -> str:
     elements.append(
         f'<text x="{padding}" y="{y + heading_size}" '
         f'font-family="sans-serif" font-size="{heading_size}" font-weight="bold" fill="#34495e">'
-        f'Instructions</text>'
+        f"Instructions</text>"
     )
     y += heading_size + 15
     for i, instruction in enumerate(recipe.instructions, 1):
@@ -625,7 +635,7 @@ def format_recipe_svg(recipe: Recipe, width: int = 800) -> str:
         elements.append(
             f'<text x="{padding + 10}" y="{y + text_size}" '
             f'font-family="sans-serif" font-size="{text_size}" fill="#333">'
-            f'{_escape_svg(text)}</text>'
+            f"{_escape_svg(text)}</text>"
         )
         y += line_height * 1.5
     y += 15
@@ -635,7 +645,7 @@ def format_recipe_svg(recipe: Recipe, width: int = 800) -> str:
         elements.append(
             f'<text x="{padding}" y="{y + text_size}" '
             f'font-family="sans-serif" font-size="{text_size}" fill="#666">'
-            f'Source: {_escape_svg(str(recipe.source_url))}</text>'
+            f"Source: {_escape_svg(str(recipe.source_url))}</text>"
         )
         y += line_height
 
@@ -645,7 +655,7 @@ def format_recipe_svg(recipe: Recipe, width: int = 800) -> str:
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
      width="{width}" height="{height}" viewBox="0 0 {width} {height}">
     <rect width="100%" height="100%" fill="white"/>
-    {''.join(elements)}
+    {"".join(elements)}
 </svg>'''
 
     return svg_content
