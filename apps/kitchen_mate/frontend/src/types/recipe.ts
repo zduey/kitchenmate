@@ -24,7 +24,7 @@ export interface Recipe {
   metadata?: RecipeMetadata;
 }
 
-export type OutputFormat = "json" | "text" | "markdown";
+export type OutputFormat = "json" | "text" | "markdown" | "pdf" | "jpeg" | "png" | "webp" | "svg";
 
 export interface ClipRequest {
   url: string;
@@ -36,7 +36,7 @@ export interface ClipRequest {
 
 export interface ConvertRequest {
   recipe: Recipe;
-  format: "text" | "markdown";
+  format: Exclude<OutputFormat, "json">;
 }
 
 export interface ApiError {

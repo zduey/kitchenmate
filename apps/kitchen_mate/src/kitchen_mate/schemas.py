@@ -14,6 +14,11 @@ class OutputFormat(str, Enum):
     text = "text"
     json = "json"
     markdown = "markdown"
+    pdf = "pdf"
+    jpeg = "jpeg"
+    png = "png"
+    webp = "webp"
+    svg = "svg"
 
 
 class ClipRequest(BaseModel):

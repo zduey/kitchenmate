@@ -12,10 +12,30 @@ interface ExportDropdownProps {
   recipe: Recipe;
 }
 
-const FORMAT_OPTIONS: { value: OutputFormat; label: string }[] = [
-  { value: "json", label: "JSON" },
-  { value: "text", label: "Text" },
-  { value: "markdown", label: "Markdown" },
+interface FormatGroup {
+  label: string;
+  options: { value: OutputFormat; label: string }[];
+}
+
+const FORMAT_GROUPS: FormatGroup[] = [
+  {
+    label: "Documents",
+    options: [
+      { value: "json", label: "JSON" },
+      { value: "text", label: "Text" },
+      { value: "markdown", label: "Markdown" },
+      { value: "pdf", label: "PDF" },
+    ],
+  },
+  {
+    label: "Images",
+    options: [
+      { value: "png", label: "PNG" },
+      { value: "jpeg", label: "JPEG" },
+      { value: "webp", label: "WebP" },
+      { value: "svg", label: "SVG" },
+    ],
+  },
 ];
 
 export function ExportDropdown({ recipe }: ExportDropdownProps) {
@@ -124,15 +144,23 @@ export function ExportDropdown({ recipe }: ExportDropdownProps) {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 bottom-full mb-2 w-40 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
-          {FORMAT_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              onClick={() => handleExport(option.value)}
-              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-            >
-              {option.label}
-            </button>
+        <div className="absolute right-0 bottom-full mb-2 w-44 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
+          {FORMAT_GROUPS.map((group, groupIndex) => (
+            <div key={group.label}>
+              {groupIndex > 0 && <div className="border-t border-gray-100 my-1" />}
+              <div className="px-3 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                {group.label}
+              </div>
+              {group.options.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => handleExport(option.value)}
+                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
           ))}
         </div>
       )}

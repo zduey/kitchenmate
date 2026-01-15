@@ -63,6 +63,12 @@ llm = [
     "cohere>=5.0.0",
 ]
 
+# Export formats (PDF, images)
+export = [
+    "weasyprint>=61.0",
+    "pillow>=10.0.0",
+]
+
 # Development dependencies
 dev = [
     "pytest>=8.0.0",

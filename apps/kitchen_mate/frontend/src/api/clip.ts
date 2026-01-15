@@ -102,7 +102,7 @@ export async function clipRecipeWithProgress(
 
 export async function convertRecipe(
   recipe: Recipe,
-  format: "text" | "markdown"
+  format: Exclude<OutputFormat, "json">
 ): Promise<Blob> {
   const request: ConvertRequest = {
     recipe,
@@ -149,5 +149,15 @@ export function getFileExtension(format: OutputFormat): string {
       return "txt";
     case "markdown":
       return "md";
+    case "pdf":
+      return "pdf";
+    case "jpeg":
+      return "jpg";
+    case "png":
+      return "png";
+    case "webp":
+      return "webp";
+    case "svg":
+      return "svg";
   }
 }
