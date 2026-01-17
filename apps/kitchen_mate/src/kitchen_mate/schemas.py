@@ -8,6 +8,13 @@ from pydantic import BaseModel, Field, HttpUrl
 from recipe_clipper.models import Recipe
 
 
+class Parser(str, Enum):
+    """Supported parsers"""
+
+    recipe_scrapers = "recipe_scrapers"
+    llm = "llm"
+
+
 class OutputFormat(str, Enum):
     """Supported output formats for recipe data."""
 

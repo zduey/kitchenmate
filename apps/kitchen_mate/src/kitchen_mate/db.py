@@ -7,25 +7,14 @@ import json
 import sqlite3
 import uuid
 from contextlib import contextmanager
-from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Generator
 
+from pydantic import BaseModel
+
 from recipe_clipper.models import Recipe
-
-
-@dataclass(frozen=True)
-class CachedRecipe:
-    """A cached recipe from the database."""
-
-    id: str
-    url: str
-    recipe: Recipe
-    content_hash: str | None
-    parsed_with: str
-    clipped_at: datetime
-    updated_at: datetime
+from kitchen_mate.schemas import Parser
 
 
 _db_path: str | None = None
@@ -73,18 +62,19 @@ def _get_connection() -> Generator[sqlite3.Connection, None, None]:
         conn.close()
 
 
-def _hash_url(url: str) -> str:
-    """Create a SHA-256 hash of a URL for indexing."""
-    normalized = url.lower().strip().rstrip("/")
-    return hashlib.sha256(normalized.encode()).hexdigest()
+class CachedRecipe(BaseModel):
+    """A cached recipe from the database."""
+
+    id: str
+    url: str
+    recipe: Recipe
+    content_hash: str | None
+    parsed_with: str
+    clipped_at: datetime
+    updated_at: datetime
 
 
-def hash_content(content: str) -> str:
-    """Create a SHA-256 hash of content for change detection."""
-    return hashlib.sha256(content.encode()).hexdigest()
-
-
-def get_cached_recipe(url: str, parsed_with: str | None = None) -> CachedRecipe | None:
+def get_cached_recipe(url: str, parsed_with: Parser | None = None) -> CachedRecipe | None:
     """Get a cached recipe by URL.
 
     Args:
@@ -134,7 +124,7 @@ def get_cached_recipe(url: str, parsed_with: str | None = None) -> CachedRecipe 
 
 
 def store_recipe(
-    url: str, recipe: Recipe, content_hash: str | None, parsed_with: str
+    url: str, recipe: Recipe, content_hash: str | None, parsed_with: Parser
 ) -> CachedRecipe:
     """Store a recipe in the cache.
 
@@ -175,7 +165,7 @@ def store_recipe(
 
 
 def update_recipe(
-    url: str, recipe: Recipe, content_hash: str | None, parsed_with: str
+    url: str, recipe: Recipe, content_hash: str | None, parsed_with: Parser
 ) -> CachedRecipe:
     """Update an existing cached recipe.
 
@@ -225,3 +215,14 @@ def update_recipe(
         clipped_at=datetime.fromisoformat(row["clipped_at"]),
         updated_at=datetime.fromisoformat(now),
     )
+
+
+def _hash_url(url: str) -> str:
+    """Create a SHA-256 hash of a URL for indexing."""
+    normalized = url.lower().strip().rstrip("/")
+    return hashlib.sha256(normalized.encode()).hexdigest()
+
+
+def hash_content(content: str) -> str:
+    """Create a SHA-256 hash of content for change detection."""
+    return hashlib.sha256(content.encode()).hexdigest()
