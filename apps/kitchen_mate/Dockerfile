@@ -20,6 +20,16 @@ FROM python:3.14-slim
 
 WORKDIR /app
 
+# Install system dependencies for WeasyPrint (PDF export) and Pillow (image processing)
+RUN apt-get update && apt-get install -y \
+    libcairo2 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libgdk-pixbuf2.0-0 \
+    libffi-dev \
+    shared-mime-info \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
@@ -38,8 +48,8 @@ COPY --from=frontend-builder /app/frontend/dist apps/kitchen_mate/frontend/dist
 # Set working directory to app
 WORKDIR /app/apps/kitchen_mate
 
-# Install dependencies
-RUN uv sync --frozen
+# Install dependencies (includes recipe-clipper[llm-anthropic,export] from pyproject.toml)
+RUN uv sync --frozen --no-dev
 
 # Default port (Render sets PORT environment variable)
 ENV PORT=8000
