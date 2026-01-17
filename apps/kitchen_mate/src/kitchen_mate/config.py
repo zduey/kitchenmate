@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     default_timeout: int = 10
     llm_allowed_ips: str | None = None
 
+    cache_db_path: str = "kitchenmate.db"
+    cache_enabled: bool = True
+
 
 def get_settings() -> Settings:
     """Get application settings instance."""
