@@ -48,8 +48,8 @@ COPY --from=frontend-builder /app/frontend/dist apps/kitchen_mate/frontend/dist
 # Set working directory to app
 WORKDIR /app/apps/kitchen_mate
 
-# Install dependencies
-RUN uv sync --frozen
+# Install dependencies (includes recipe-clipper[llm-anthropic,export] from pyproject.toml)
+RUN uv sync --frozen --no-dev
 
 # Default port (Render sets PORT environment variable)
 ENV PORT=8000
