@@ -25,6 +25,7 @@ export async function clipRecipe(url: string, forceLlm = false): Promise<Recipe>
       "Content-Type": "application/json",
     },
     body: JSON.stringify(request),
+    credentials: "include",
   });
 
   if (!response.ok) {
@@ -53,6 +54,7 @@ export async function clipRecipeWithProgress(
       "Content-Type": "application/json",
     },
     body: JSON.stringify(request),
+    credentials: "include",
   });
 
   if (!response.ok) {
@@ -115,6 +117,7 @@ export async function convertRecipe(
       "Content-Type": "application/json",
     },
     body: JSON.stringify(request),
+    credentials: "include",
   });
 
   if (!response.ok) {
