@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import AsyncGenerator
 
 import uvicorn
 from fastapi import FastAPI
@@ -10,12 +12,24 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from kitchen_mate.config import get_settings
+from kitchen_mate.db import init_db
 from kitchen_mate.routes import auth, clip, convert
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """Initialize resources on startup."""
+    settings = get_settings()
+    if settings.cache_enabled:
+        init_db(settings.cache_db_path)
+    yield
+
 
 app = FastAPI(
     title="KitchenMate API",
     description="Recipe extraction API powered by recipe-clipper",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 # Configure CORS to allow frontend to send cookies
