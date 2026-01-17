@@ -17,7 +17,8 @@ class Settings(BaseSettings):
     anthropic_api_key: str | None = None
     default_timeout: int = 10
     llm_allowed_ips: str | None = None
-    cache_db_path: str = "recipes.db"
+
+    cache_db_path: str = "kitchenmate.db"
     cache_enabled: bool = True
 
 

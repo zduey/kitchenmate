@@ -99,6 +99,7 @@ async def _stream_clip_recipe(
                 cached_entry = get_cached_recipe(url)
 
             if cached_entry:
+                logger.info("Retrieved cached recipe")
                 yield _sse_event(
                     {
                         "stage": "complete",
@@ -109,10 +110,11 @@ async def _stream_clip_recipe(
                 )
                 return
 
+        logger.info(f"Clipping recipe: {url}")
         if force_llm:
             # Force LLM extraction: skip recipe-scrapers entirely
             _check_llm_allowed(client_ip, api_key, allowed_ips)
-            yield _sse_event({"stage": "llm", "message": "Using AI extraction..."})
+            yield _sse_event({"stage": "llm", "message": "Extracting with AI..."})
             from recipe_clipper.parsers.llm_parser import parse_with_claude
 
             recipe = await asyncio.to_thread(parse_with_claude, url, api_key)
@@ -122,7 +124,7 @@ async def _stream_clip_recipe(
             # Stage 1: Fetching
             yield _sse_event({"stage": "fetching", "message": "Fetching page..."})
             response = await asyncio.to_thread(fetch_url, url, timeout=timeout)
-            content_hash = hash_content(response.text) if cache_enabled else None
+            content_hash = hash_content(response.content) if cache_enabled else None
 
             # Check for content change if force_refresh
             if force_refresh and cache_enabled:
@@ -161,6 +163,7 @@ async def _stream_clip_recipe(
 
         # Store in cache
         if cache_enabled:
+            logger.info(f"Caching recipe: {url}")
             existing = get_cached_recipe(url)
             if existing:
                 update_recipe(url, recipe, content_hash, parsed_with)
