@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     default_timeout: int = 10
     llm_allowed_ips: str | None = None
 
+    # Supabase authentication configuration
+    supabase_url: str | None = None
+    supabase_anon_key: str | None = None
+    supabase_jwt_secret: str | None = None
+
 
 def get_settings() -> Settings:
     """Get application settings instance."""

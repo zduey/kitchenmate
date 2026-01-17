@@ -6,10 +6,11 @@ from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from kitchen_mate.routes import clip, convert
+from kitchen_mate.routes import auth, clip, convert
 
 app = FastAPI(
     title="KitchenMate API",
@@ -17,6 +18,19 @@ app = FastAPI(
     version="0.1.0",
 )
 
+# Configure CORS to allow frontend to send cookies
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",  # Vite dev server
+        "https://kitchenmate.onrender.com",  # Production
+    ],
+    allow_credentials=True,  # Allow cookies
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(auth.router, prefix="/api")
 app.include_router(clip.router, prefix="/api")
 app.include_router(convert.router, prefix="/api")
 

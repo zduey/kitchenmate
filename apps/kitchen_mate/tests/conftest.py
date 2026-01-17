@@ -73,3 +73,15 @@ def settings_with_api_key_allow_all(client: TestClient) -> Generator[None, None,
     app.dependency_overrides[get_settings] = lambda: test_settings
     yield
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def settings_with_supabase(client: TestClient) -> Generator[Settings, None, None]:
+    """Override settings with Supabase configuration."""
+    test_settings = Settings(
+        supabase_url="https://test.supabase.co",
+        supabase_jwt_secret="test-secret-key-at-least-32-characters-long",
+    )
+    app.dependency_overrides[get_settings] = lambda: test_settings
+    yield test_settings
+    app.dependency_overrides.clear()
