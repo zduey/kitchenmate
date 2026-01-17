@@ -19,14 +19,19 @@ from recipe_clipper.exceptions import (
 )
 from recipe_clipper.formatters import format_recipe_json
 from recipe_clipper.http import fetch_url
+from recipe_clipper.models import Recipe
 from recipe_clipper.parsers.recipe_scrapers_parser import parse_with_recipe_scrapers
 
 from kitchen_mate.config import Settings, get_settings, is_ip_allowed
-from kitchen_mate.schemas import ClipRequest
+from kitchen_mate.db import get_cached_recipe, hash_content, store_recipe, update_recipe
+from kitchen_mate.schemas import ClipRequest, ClipResponse
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+PARSED_WITH_RECIPE_SCRAPERS = "recipe_scrapers"
+PARSED_WITH_LLM = "llm"
 
 
 class LLMNotAllowedError(Exception):
@@ -74,12 +79,36 @@ async def _stream_clip_recipe(
     timeout: int,
     use_llm_fallback: bool,
     force_llm: bool,
+    force_refresh: bool,
+    cache_enabled: bool,
     api_key: str | None,
     client_ip: str | None,
     allowed_ips: str | None,
 ) -> AsyncGenerator[str, None]:
     """Stream recipe extraction with progress updates."""
     try:
+        cached = False
+        content_changed: bool | None = None
+
+        # Check cache first (unless force_refresh)
+        if cache_enabled and not force_refresh:
+            if force_llm:
+                # Only use cache if we have an LLM-parsed version
+                cached_entry = get_cached_recipe(url, parsed_with=PARSED_WITH_LLM)
+            else:
+                cached_entry = get_cached_recipe(url)
+
+            if cached_entry:
+                yield _sse_event(
+                    {
+                        "stage": "complete",
+                        "recipe": json.loads(format_recipe_json(cached_entry.recipe)),
+                        "cached": True,
+                        "content_changed": None,
+                    }
+                )
+                return
+
         if force_llm:
             # Force LLM extraction: skip recipe-scrapers entirely
             _check_llm_allowed(client_ip, api_key, allowed_ips)
@@ -87,15 +116,35 @@ async def _stream_clip_recipe(
             from recipe_clipper.parsers.llm_parser import parse_with_claude
 
             recipe = await asyncio.to_thread(parse_with_claude, url, api_key)
+            parsed_with = PARSED_WITH_LLM
+            content_hash = None  # LLM parser fetches its own content
         else:
             # Stage 1: Fetching
             yield _sse_event({"stage": "fetching", "message": "Fetching page..."})
             response = await asyncio.to_thread(fetch_url, url, timeout=timeout)
+            content_hash = hash_content(response.text) if cache_enabled else None
+
+            # Check for content change if force_refresh
+            if force_refresh and cache_enabled:
+                cached_entry = get_cached_recipe(url)
+                if cached_entry and cached_entry.content_hash == content_hash:
+                    # Content unchanged, return cached version
+                    yield _sse_event(
+                        {
+                            "stage": "complete",
+                            "recipe": json.loads(format_recipe_json(cached_entry.recipe)),
+                            "cached": True,
+                            "content_changed": False,
+                        }
+                    )
+                    return
+                content_changed = True
 
             # Stage 2: Parsing
             yield _sse_event({"stage": "parsing", "message": "Parsing recipe..."})
             try:
                 recipe = await asyncio.to_thread(parse_with_recipe_scrapers, response)
+                parsed_with = PARSED_WITH_RECIPE_SCRAPERS
             except RecipeParsingError:
                 if not use_llm_fallback:
                     raise
@@ -108,12 +157,23 @@ async def _stream_clip_recipe(
                 from recipe_clipper.parsers.llm_parser import parse_with_claude
 
                 recipe = await asyncio.to_thread(parse_with_claude, url, api_key)
+                parsed_with = PARSED_WITH_LLM
+
+        # Store in cache
+        if cache_enabled:
+            existing = get_cached_recipe(url)
+            if existing:
+                update_recipe(url, recipe, content_hash, parsed_with)
+            else:
+                store_recipe(url, recipe, content_hash, parsed_with)
 
         # Stage 4: Complete
         yield _sse_event(
             {
                 "stage": "complete",
                 "recipe": json.loads(format_recipe_json(recipe)),
+                "cached": cached,
+                "content_changed": content_changed,
             }
         )
 
@@ -147,14 +207,18 @@ async def clip_recipe_endpoint(
     api_key = settings.anthropic_api_key
     client_ip = _get_client_ip(request)
     allowed_ips = settings.llm_allowed_ips
+    cache_enabled = settings.cache_enabled
+    url = str(clip_request.url)
 
     if clip_request.stream:
         return StreamingResponse(
             _stream_clip_recipe(
-                str(clip_request.url),
+                url,
                 clip_request.timeout,
                 clip_request.use_llm_fallback,
                 clip_request.force_llm,
+                clip_request.force_refresh,
+                cache_enabled,
                 api_key,
                 client_ip,
                 allowed_ips,
@@ -164,18 +228,60 @@ async def clip_recipe_endpoint(
 
     # Non-streaming: use the same logic but without SSE
     try:
+        cached = False
+        content_changed: bool | None = None
+        recipe: Recipe
+        parsed_with: str
+        content_hash: str | None = None
+
+        # Check cache first (unless force_refresh)
+        if cache_enabled and not clip_request.force_refresh:
+            if clip_request.force_llm:
+                # Only use cache if we have an LLM-parsed version
+                cached_entry = get_cached_recipe(url, parsed_with=PARSED_WITH_LLM)
+            else:
+                cached_entry = get_cached_recipe(url)
+
+            if cached_entry:
+                return Response(
+                    content=ClipResponse(
+                        recipe=cached_entry.recipe,
+                        cached=True,
+                        content_changed=None,
+                    ).model_dump_json(),
+                    media_type="application/json",
+                )
+
         if clip_request.force_llm:
             # Force LLM extraction: skip recipe-scrapers entirely
             _check_llm_allowed(client_ip, api_key, allowed_ips)
             from recipe_clipper.parsers.llm_parser import parse_with_claude
 
-            recipe = await asyncio.to_thread(parse_with_claude, str(clip_request.url), api_key)
+            recipe = await asyncio.to_thread(parse_with_claude, url, api_key)
+            parsed_with = PARSED_WITH_LLM
+            content_hash = None  # LLM parser fetches its own content
         else:
-            response = await asyncio.to_thread(
-                fetch_url, str(clip_request.url), timeout=clip_request.timeout
-            )
+            response = await asyncio.to_thread(fetch_url, url, timeout=clip_request.timeout)
+            content_hash = hash_content(response.text) if cache_enabled else None
+
+            # Check for content change if force_refresh
+            if clip_request.force_refresh and cache_enabled:
+                cached_entry = get_cached_recipe(url)
+                if cached_entry and cached_entry.content_hash == content_hash:
+                    # Content unchanged, return cached version
+                    return Response(
+                        content=ClipResponse(
+                            recipe=cached_entry.recipe,
+                            cached=True,
+                            content_changed=False,
+                        ).model_dump_json(),
+                        media_type="application/json",
+                    )
+                content_changed = True
+
             try:
                 recipe = await asyncio.to_thread(parse_with_recipe_scrapers, response)
+                parsed_with = PARSED_WITH_RECIPE_SCRAPERS
             except RecipeParsingError:
                 if not clip_request.use_llm_fallback:
                     raise
@@ -184,7 +290,17 @@ async def clip_recipe_endpoint(
 
                 from recipe_clipper.parsers.llm_parser import parse_with_claude
 
-                recipe = await asyncio.to_thread(parse_with_claude, str(clip_request.url), api_key)
+                recipe = await asyncio.to_thread(parse_with_claude, url, api_key)
+                parsed_with = PARSED_WITH_LLM
+
+        # Store in cache
+        if cache_enabled:
+            existing = get_cached_recipe(url)
+            if existing:
+                update_recipe(url, recipe, content_hash, parsed_with)
+            else:
+                store_recipe(url, recipe, content_hash, parsed_with)
+
     except RecipeNotFoundError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
     except NetworkError as error:
@@ -196,5 +312,11 @@ async def clip_recipe_endpoint(
     except RecipeClipperError as error:
         raise HTTPException(status_code=500, detail=str(error)) from error
 
-    content = format_recipe_json(recipe)
-    return Response(content=content, media_type="application/json")
+    return Response(
+        content=ClipResponse(
+            recipe=recipe,
+            cached=cached,
+            content_changed=content_changed,
+        ).model_dump_json(),
+        media_type="application/json",
+    )

@@ -16,15 +16,19 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def client() -> Generator[TestClient, None, None]:
-    """Create a test client for the FastAPI app."""
+    """Create a test client for the FastAPI app with caching disabled."""
+    # Disable caching for tests by default
+    test_settings = Settings(cache_enabled=False)
+    app.dependency_overrides[get_settings] = lambda: test_settings
     with TestClient(app) as test_client:
         yield test_client
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture
 def settings_with_api_key(client: TestClient) -> Generator[None, None, None]:
     """Override settings to include an API key."""
-    test_settings = Settings(anthropic_api_key="test-api-key")
+    test_settings = Settings(anthropic_api_key="test-api-key", cache_enabled=False)
     app.dependency_overrides[get_settings] = lambda: test_settings
     yield
     app.dependency_overrides.clear()
@@ -33,7 +37,7 @@ def settings_with_api_key(client: TestClient) -> Generator[None, None, None]:
 @pytest.fixture
 def settings_without_api_key(client: TestClient) -> Generator[None, None, None]:
     """Override settings to have no API key."""
-    test_settings = Settings(anthropic_api_key=None)
+    test_settings = Settings(anthropic_api_key=None, cache_enabled=False)
     app.dependency_overrides[get_settings] = lambda: test_settings
     yield
     app.dependency_overrides.clear()
@@ -45,6 +49,7 @@ def settings_with_api_key_and_ip_whitelist(client: TestClient) -> Generator[None
     test_settings = Settings(
         anthropic_api_key="test-api-key",
         llm_allowed_ips="127.0.0.1,192.168.1.0/24",
+        cache_enabled=False,
     )
     app.dependency_overrides[get_settings] = lambda: test_settings
     yield
@@ -57,6 +62,7 @@ def settings_with_api_key_no_whitelist(client: TestClient) -> Generator[None, No
     test_settings = Settings(
         anthropic_api_key="test-api-key",
         llm_allowed_ips=None,
+        cache_enabled=False,
     )
     app.dependency_overrides[get_settings] = lambda: test_settings
     yield
@@ -69,6 +75,7 @@ def settings_with_api_key_allow_all(client: TestClient) -> Generator[None, None,
     test_settings = Settings(
         anthropic_api_key="test-api-key",
         llm_allowed_ips="0.0.0.0/0",
+        cache_enabled=False,
     )
     app.dependency_overrides[get_settings] = lambda: test_settings
     yield

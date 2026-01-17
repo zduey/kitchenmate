@@ -34,9 +34,24 @@ class ClipRequest(BaseModel):
         default=False,
         description="Skip recipe-scrapers and use LLM extraction directly",
     )
+    force_refresh: bool = Field(
+        default=False,
+        description="Bypass cache and re-fetch the recipe, checking for content changes",
+    )
     stream: bool = Field(
         default=False,
         description="Stream progress updates via Server-Sent Events",
+    )
+
+
+class ClipResponse(BaseModel):
+    """Response body for the /clip endpoint."""
+
+    recipe: Recipe = Field(description="The extracted recipe")
+    cached: bool = Field(default=False, description="Whether this was served from cache")
+    content_changed: bool | None = Field(
+        default=None,
+        description="If force_refresh was used, whether the content changed since last clip",
     )
 
 

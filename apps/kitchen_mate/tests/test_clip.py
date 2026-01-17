@@ -39,8 +39,9 @@ def test_clip_recipe_returns_json(client: TestClient) -> None:
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/json"
     data = response.json()
-    assert data["title"] == "Test Recipe"
-    assert data["instructions"] == ["Step 1", "Step 2"]
+    assert data["recipe"]["title"] == "Test Recipe"
+    assert data["recipe"]["instructions"] == ["Step 1", "Step 2"]
+    assert data["cached"] is False
 
 
 def test_clip_recipe_not_found(client: TestClient) -> None:
@@ -181,7 +182,8 @@ def test_clip_recipe_llm_fallback_ip_allowed(
                     )
 
     assert response.status_code == 200
-    assert response.json()["title"] == "LLM Recipe"
+    assert response.json()["recipe"]["title"] == "LLM Recipe"
+    assert response.json()["cached"] is False
 
 
 def test_clip_recipe_no_llm_fallback_ignores_whitelist(
@@ -204,4 +206,5 @@ def test_clip_recipe_no_llm_fallback_ignores_whitelist(
             )
 
     assert response.status_code == 200
-    assert response.json()["title"] == "Test Recipe"
+    assert response.json()["recipe"]["title"] == "Test Recipe"
+    assert response.json()["cached"] is False
