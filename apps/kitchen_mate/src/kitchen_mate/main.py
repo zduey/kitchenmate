@@ -16,6 +16,7 @@ from kitchen_mate.config import get_settings
 from kitchen_mate.db import init_db
 from kitchen_mate.routes import auth, clip, convert
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Initialize resources on startup."""

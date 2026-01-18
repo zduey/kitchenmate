@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     supabase_url: str | None = None
     supabase_anon_key: str | None = None
     supabase_jwt_secret: str | None = None
-    
+
     # database configuration
     cache_db_path: str = "kitchenmate.db"
     cache_enabled: bool = True

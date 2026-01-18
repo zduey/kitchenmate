@@ -13,7 +13,7 @@ router = APIRouter()
 
 @router.get("/auth/me")
 async def get_current_user_endpoint(
-    current_user: Annotated[User, Depends(get_current_user)]
+    current_user: Annotated[User, Depends(get_current_user)],
 ) -> User:
     """Get the current authenticated user.
 

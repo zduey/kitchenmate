@@ -39,9 +39,7 @@ def create_test_jwt(user_id: str, email: str, secret: str, expired: bool = False
     return jwt.encode(payload, secret, algorithm="HS256")
 
 
-def test_get_current_user_valid_token(
-    client: TestClient, settings_with_supabase: Settings
-) -> None:
+def test_get_current_user_valid_token(client: TestClient, settings_with_supabase: Settings) -> None:
     """Test retrieving current user with valid token."""
     token = create_test_jwt(
         "user-123", "test@example.com", settings_with_supabase.supabase_jwt_secret
