@@ -10,6 +10,29 @@ Full-stack recipe extraction application with a React frontend and FastAPI backe
 - **Download Support**: Save recipes as files directly from the UI
 - **LLM Fallback**: Support for unsupported websites (requires Anthropic API key)
 - **Docker Deployment**: Single container with frontend and backend
+- **Flexible Auth**: Single-tenant (no auth) or multi-tenant (Supabase) modes
+
+## Deployment Modes
+
+The application supports two deployment modes, determined automatically by configuration:
+
+### Single-Tenant Mode
+
+For self-hosted instances where authentication is not needed. All features are available to everyone.
+
+- No authentication required
+- No Supabase configuration needed
+- User context uses a default "local" user
+
+### Multi-Tenant Mode
+
+For SaaS deployments with user authentication via Supabase.
+
+- Public features (clip, export) work without sign-in
+- User-specific features (future: save recipes, collections) require authentication
+- Magic link authentication via Supabase
+
+**Mode is determined by:** Whether `SUPABASE_JWT_SECRET` is set.
 
 ## Frontend
 
@@ -39,7 +62,9 @@ npm run build
 npm run lint
 ```
 
-The Vite dev server proxies `/clip` and `/health` requests to the backend at `http://localhost:8000`.
+The Vite dev server proxies `/api` requests to the backend at `http://localhost:8000`.
+
+**Note**: The frontend reads environment variables from the parent directory's `.env` file (shared with backend).
 
 ## Backend
 
@@ -202,9 +227,14 @@ The application will be available at http://localhost:8000.
 
 ### Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `ANTHROPIC_API_KEY` | API key for LLM fallback (optional) |
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `ANTHROPIC_API_KEY` | API key for LLM fallback | No |
+| `LLM_ALLOWED_IPS` | Comma-separated IPs/CIDR ranges for LLM access | No |
+| `SUPABASE_JWT_SECRET` | JWT secret for auth (enables multi-tenant mode) | No |
+| `VITE_SUPABASE_URL` | Supabase project URL (frontend) | For multi-tenant |
+| `VITE_SUPABASE_ANON_KEY` | Supabase anon key (frontend) | For multi-tenant |
+| `CORS_ORIGINS` | Allowed CORS origins (comma-separated) | No |
 
 ### GitHub Container Registry
 

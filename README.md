@@ -1,6 +1,6 @@
 # Kitchen Mate
 
-A monorepo for recipe extraction tools and services.
+A monorepo for recipe extraction tools and services. Supports both single-tenant (self-hosted) and multi-tenant (SaaS) deployments.
 
 ## Repository Structure
 
@@ -52,6 +52,32 @@ uv run --directory apps/kitchen_mate uvicorn kitchen_mate.main:app --reload
 # Using Docker
 docker compose up --build
 ```
+
+## Deployment Modes
+
+Kitchen Mate supports two deployment modes:
+
+### Single-Tenant (Self-Hosted)
+
+Run your own instance with no authentication required. All features are available to anyone with access.
+
+```bash
+# No Supabase configuration needed - just run the app
+docker compose up --build
+```
+
+### Multi-Tenant (SaaS)
+
+Deploy as a multi-tenant service with Supabase authentication. Public features (clip, export) work for everyone; user-specific features require sign-in.
+
+```bash
+# Set Supabase environment variables
+export SUPABASE_JWT_SECRET="your-jwt-secret"
+export VITE_SUPABASE_URL="https://your-project.supabase.co"
+export VITE_SUPABASE_ANON_KEY="your-anon-key"
+```
+
+The mode is determined automatically by whether `SUPABASE_JWT_SECRET` is set.
 
 ### Testing
 
