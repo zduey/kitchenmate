@@ -28,6 +28,16 @@ class Settings(BaseSettings):
     cache_db_path: str = "kitchenmate.db"
     cache_enabled: bool = True
 
+    @property
+    def is_multi_tenant(self) -> bool:
+        """Check if running in multi-tenant mode (auth enabled)."""
+        return self.supabase_jwt_secret is not None
+
+    @property
+    def is_single_tenant(self) -> bool:
+        """Check if running in single-tenant mode (no auth)."""
+        return self.supabase_jwt_secret is None
+
 
 def get_settings() -> Settings:
     """Get application settings instance."""

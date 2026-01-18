@@ -1,5 +1,5 @@
 import { useState, FormEvent } from "react";
-import { useAuthContext } from "../contexts/AuthContext";
+import { useAuthContext } from "../hooks/useAuthContext";
 import { ErrorMessage } from "./ErrorMessage";
 
 type AuthStep = "input" | "check-email";

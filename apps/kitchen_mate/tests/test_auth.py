@@ -123,3 +123,56 @@ def test_get_current_user_wrong_audience(
 
     assert response.status_code == 401
     assert "Invalid authentication token" in response.json()["detail"]
+
+
+# Tests for get_user dependency (single-tenant vs multi-tenant)
+
+
+async def test_get_user_single_tenant_returns_default_user() -> None:
+    """Test that get_user returns default user in single-tenant mode."""
+    from kitchen_mate.auth import DEFAULT_USER, get_user
+    from kitchen_mate.config import Settings
+
+    settings = Settings(supabase_jwt_secret=None)
+    assert settings.is_single_tenant
+
+    # In single-tenant mode, get_user should return DEFAULT_USER without any token
+    user = await get_user(access_token=None, settings=settings)
+
+    assert user.id == DEFAULT_USER.id
+    assert user.email == DEFAULT_USER.email
+
+
+async def test_get_user_multi_tenant_requires_auth() -> None:
+    """Test that get_user requires authentication in multi-tenant mode."""
+    import pytest
+    from fastapi import HTTPException
+
+    from kitchen_mate.auth import get_user
+    from kitchen_mate.config import Settings
+
+    settings = Settings(supabase_jwt_secret="test-secret-key-at-least-32-characters-long")
+    assert settings.is_multi_tenant
+
+    # In multi-tenant mode, get_user should raise 401 without token
+    with pytest.raises(HTTPException) as exc_info:
+        await get_user(access_token=None, settings=settings)
+
+    assert exc_info.value.status_code == 401
+    assert "Not authenticated" in exc_info.value.detail
+
+
+async def test_get_user_multi_tenant_with_valid_token() -> None:
+    """Test that get_user returns authenticated user in multi-tenant mode with valid token."""
+    from kitchen_mate.auth import get_user
+    from kitchen_mate.config import Settings
+
+    secret = "test-secret-key-at-least-32-characters-long"
+    settings = Settings(supabase_jwt_secret=secret)
+
+    token = create_test_jwt("user-456", "multi@example.com", secret)
+
+    user = await get_user(access_token=token, settings=settings)
+
+    assert user.id == "user-456"
+    assert user.email == "multi@example.com"

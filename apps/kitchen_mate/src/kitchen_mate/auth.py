@@ -18,6 +18,10 @@ class User(BaseModel):
     email: str | None = None
 
 
+# Default user for single-tenant mode
+DEFAULT_USER = User(id="local", email=None)
+
+
 def verify_jwt_token(token: str, settings: Settings) -> dict:
     """Verify Supabase JWT token and return claims.
 
@@ -111,3 +115,37 @@ async def get_current_user_optional(
         return extract_user_from_claims(claims)
     except HTTPException:
         return None
+
+
+async def get_user(
+    access_token: Annotated[str | None, Cookie()] = None,
+    settings: Annotated[Settings, Depends(get_settings)] = None,
+) -> User:
+    """FastAPI dependency for user-gated routes.
+
+    Handles both single-tenant and multi-tenant modes:
+    - Single-tenant: Returns DEFAULT_USER (no auth required)
+    - Multi-tenant: Requires valid JWT, returns authenticated user or 401
+
+    Use this for routes that require a user context (e.g., saving recipes).
+    Public routes (e.g., clipping) don't need this dependency.
+
+    Args:
+        access_token: JWT token from cookie (only used in multi-tenant mode)
+        settings: Application settings
+
+    Returns:
+        User object (default user in single-tenant, authenticated user in multi-tenant)
+
+    Raises:
+        HTTPException 401: If multi-tenant and not authenticated
+    """
+    if settings.is_single_tenant:
+        return DEFAULT_USER
+
+    # Multi-tenant mode: require authentication
+    if not access_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    claims = verify_jwt_token(access_token, settings)
+    return extract_user_from_claims(claims)

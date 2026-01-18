@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { User as SupabaseUser, AuthError } from "@supabase/supabase-js";
 import { supabase, syncSessionToCookie, isAuthEnabled } from "../lib/supabase";
-import { User, AuthState } from "../types/auth";
+import { User, AuthState, DEFAULT_USER } from "../types/auth";
 
 function mapSupabaseUser(user: SupabaseUser): User {
   return {
@@ -11,12 +11,14 @@ function mapSupabaseUser(user: SupabaseUser): User {
 }
 
 export function useAuth() {
+  // In single-tenant mode, always use DEFAULT_USER with no loading state
   const [state, setState] = useState<AuthState>({
-    user: null,
-    loading: isAuthEnabled, // Only show loading if auth is enabled
+    user: isAuthEnabled ? null : DEFAULT_USER,
+    loading: isAuthEnabled,
   });
 
   useEffect(() => {
+    // Single-tenant mode: no auth setup needed
     if (!supabase) {
       return;
     }
