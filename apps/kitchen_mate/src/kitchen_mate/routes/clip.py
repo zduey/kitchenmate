@@ -152,9 +152,7 @@ async def _parse_with_llm(url: str, api_key: str | None) -> Recipe:
     return await asyncio.to_thread(parse_with_claude, url, api_key)
 
 
-def _check_llm_allowed(
-    client_ip: str | None, api_key: str | None, allowed_ips: str | None
-) -> None:
+def _check_llm_allowed(client_ip: str | None, api_key: str | None, allowed_ips: str | None) -> None:
     """Check if LLM usage is allowed. Raises appropriate errors if not."""
     logger.info("LLM extraction attempted from IP: %s", client_ip)
 
