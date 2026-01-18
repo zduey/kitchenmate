@@ -103,6 +103,7 @@ The FastAPI backend provides HTTP access to recipe extraction:
 
 - **Main App** (`main.py`): FastAPI application with uvicorn server
 - **Config** (`config.py`): Settings management with pydantic-settings
+- **Auth** (`auth.py`): Authentication utilities and user dependencies
 - **Schemas** (`schemas.py`): Request/response Pydantic models
 - **Routes** (`routes/clip.py`): Recipe clipping endpoint
 
@@ -142,8 +143,76 @@ The React frontend provides a web interface for recipe extraction:
   - `RecipeCard.tsx`: Recipe display with download options
   - `LoadingSpinner.tsx`: Loading state indicator
   - `ErrorMessage.tsx`: Error display
+- **Auth**:
+  - `contexts/AuthContext.tsx`: Auth provider component
+  - `hooks/useAuth.ts`: Core auth state management
+  - `hooks/useAuthContext.ts`: Context consumer hook
+  - `hooks/useRequireAuth.ts`: Hook for user-gated features
 - **API Client** (`api/clip.ts`): Handles recipe extraction requests
 - **Development**: Vite dev server with API proxy to backend
+- **Environment**: Reads `.env` from parent directory (shared with backend via `envDir: ".."` in vite.config.ts)
+
+### Multi-Tenant Architecture
+
+The application supports two deployment modes determined by configuration:
+
+#### Single-Tenant Mode (No Auth)
+- Enabled when `SUPABASE_JWT_SECRET` is not set
+- All features available without authentication
+- User context returns `DEFAULT_USER` (id: "local")
+
+#### Multi-Tenant Mode (Supabase Auth)
+- Enabled when `SUPABASE_JWT_SECRET` is set
+- Public features (clip, export) work without sign-in
+- User-gated features require authentication
+
+#### Adding User-Gated Features
+
+**Backend** - Use the `get_user` dependency:
+
+```python
+from kitchen_mate.auth import User, get_user
+from fastapi import Depends
+
+@router.post("/recipes/save")
+async def save_recipe(
+    recipe: Recipe,
+    user: User = Depends(get_user),  # Returns DEFAULT_USER or authenticated user
+):
+    # user.id is "local" in single-tenant, real UUID in multi-tenant
+    # No if/else needed - just use user.id
+    save_to_database(recipe, user_id=user.id)
+```
+
+**Frontend** - Use the `useRequireAuth` hook:
+
+```typescript
+import { useRequireAuth } from "../hooks/useRequireAuth";
+
+function SaveButton({ recipe }: { recipe: Recipe }) {
+  const { isAuthorized, user } = useRequireAuth();
+
+  const handleSave = async () => {
+    if (!isAuthorized) {
+      openSignInModal();  // Prompt user to sign in
+      return;
+    }
+    // user.id is "local" in single-tenant, real UUID in multi-tenant
+    await saveRecipe(recipe, user.id);
+  };
+
+  return <button onClick={handleSave}>Save Recipe</button>;
+}
+```
+
+#### Key Files
+
+| File | Purpose |
+|------|---------|
+| `config.py` | `is_single_tenant` / `is_multi_tenant` properties |
+| `auth.py` | `DEFAULT_USER`, `get_user()` dependency |
+| `types/auth.ts` | `DEFAULT_USER` constant |
+| `hooks/useRequireAuth.ts` | Frontend hook for user-gated features |
 
 ### Public API
 
@@ -372,8 +441,15 @@ The application is deployed to [Render](https://render.com) using Docker.
 
 ### Environment Variables (set in Render dashboard)
 
+**Core:**
 - `ANTHROPIC_API_KEY`: API key for LLM-based recipe extraction
 - `LLM_ALLOWED_IPS`: Comma-separated IPs/CIDR ranges allowed to use LLM fallback
+- `CORS_ORIGINS`: Allowed CORS origins (comma-separated)
+
+**Multi-Tenant Mode (Supabase):**
+- `SUPABASE_JWT_SECRET`: JWT secret for verifying auth tokens (enables multi-tenant mode)
+- `VITE_SUPABASE_URL`: Supabase project URL (frontend)
+- `VITE_SUPABASE_ANON_KEY`: Supabase anonymous key (frontend)
 
 ### Deployment Flow
 

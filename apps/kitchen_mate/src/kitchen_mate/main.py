@@ -8,18 +8,21 @@ from typing import AsyncGenerator
 
 import uvicorn
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from kitchen_mate.config import get_settings
 from kitchen_mate.db import init_db
-from kitchen_mate.routes import clip, convert
+from kitchen_mate.routes import auth, clip, convert
+
+
+settings = get_settings()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Initialize resources on startup."""
-    settings = get_settings()
     if settings.cache_enabled:
         init_db(settings.cache_db_path)
     yield
@@ -32,6 +35,17 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Configure CORS to allow frontend to send cookies
+# Origins can be comma-separated (e.g., "http://localhost:5173,https://example.com")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[origin.strip() for origin in settings.cors_origins.split(",")],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(auth.router, prefix="/api")
 app.include_router(clip.router, prefix="/api")
 app.include_router(convert.router, prefix="/api")
 
