@@ -11,19 +11,20 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", case_sensitive=False
+        env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="ignore"
     )
 
     anthropic_api_key: str | None = None
     default_timeout: int = 10
     llm_allowed_ips: str | None = None
 
-    # Supabase authentication configuration
-    supabase_url: str | None = None
-    supabase_anon_key: str | None = None
+    # Supabase authentication (only JWT secret needed for backend verification)
     supabase_jwt_secret: str | None = None
 
-    # database configuration
+    # CORS configuration
+    cors_origins: str = "http://localhost:5173"
+
+    # Database configuration
     cache_db_path: str = "kitchenmate.db"
     cache_enabled: bool = True
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { User as SupabaseUser, AuthError } from "@supabase/supabase-js";
-import { supabase, syncSessionToCookie } from "../lib/supabase";
+import { supabase, syncSessionToCookie, isAuthEnabled } from "../lib/supabase";
 import { User, AuthState } from "../types/auth";
 
 function mapSupabaseUser(user: SupabaseUser): User {
@@ -13,10 +13,14 @@ function mapSupabaseUser(user: SupabaseUser): User {
 export function useAuth() {
   const [state, setState] = useState<AuthState>({
     user: null,
-    loading: true,
+    loading: isAuthEnabled, // Only show loading if auth is enabled
   });
 
   useEffect(() => {
+    if (!supabase) {
+      return;
+    }
+
     // Check active session on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
       setState({
@@ -40,12 +44,13 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
-  /**
-   * Send magic link to user's email
-   */
   const signInWithMagicLink = async (
     email: string
   ): Promise<{ error: AuthError | null }> => {
+    if (!supabase) {
+      return { error: { message: "Authentication not configured" } as AuthError };
+    }
+
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
@@ -53,19 +58,19 @@ export function useAuth() {
       },
     });
 
-    if (error) {
-      return { error };
-    }
-
-    return { error: null };
+    return { error: error ?? null };
   };
 
   const signOut = async (): Promise<{ error: AuthError | null }> => {
+    if (!supabase) {
+      return { error: null };
+    }
+
     const { error } = await supabase.auth.signOut();
     if (!error) {
       syncSessionToCookie(null);
     }
-    return { error };
+    return { error: error ?? null };
   };
 
   return {
@@ -73,5 +78,6 @@ export function useAuth() {
     loading: state.loading,
     signInWithMagicLink,
     signOut,
+    isAuthEnabled,
   };
 }

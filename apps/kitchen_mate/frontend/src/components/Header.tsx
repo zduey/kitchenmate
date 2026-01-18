@@ -1,18 +1,16 @@
-import { useState } from "react";
 import { useAuthContext } from "../contexts/AuthContext";
+import { UserDropdown } from "./UserDropdown";
 
 interface HeaderProps {
   onSignInClick: () => void;
 }
 
 export function Header({ onSignInClick }: HeaderProps) {
-  const { user, signOut, loading } = useAuthContext();
-  const [showDropdown, setShowDropdown] = useState(false);
+  const { user, signOut, loading, isAuthEnabled } = useAuthContext();
 
   const handleSignOut = async () => {
     try {
       await signOut();
-      setShowDropdown(false);
     } catch (err) {
       console.error("Sign out error:", err);
     }
@@ -28,47 +26,10 @@ export function Header({ onSignInClick }: HeaderProps) {
           </p>
         </div>
 
-        {!loading && (
+        {isAuthEnabled && !loading && (
           <div className="flex items-center gap-4">
             {user ? (
-              <div className="relative">
-                <button
-                  onClick={() => setShowDropdown(!showDropdown)}
-                  className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <span>{user.email}</span>
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </button>
-
-                {showDropdown && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-10"
-                      onClick={() => setShowDropdown(false)}
-                    />
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
-                      <button
-                        onClick={handleSignOut}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      >
-                        Sign Out
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
+              <UserDropdown user={user} onSignOut={handleSignOut} />
             ) : (
               <button
                 onClick={onSignInClick}

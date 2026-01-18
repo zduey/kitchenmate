@@ -6,6 +6,7 @@ import { User } from "../types/auth";
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  isAuthEnabled: boolean;
   signInWithMagicLink: (email: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<{ error: AuthError | null }>;
 }

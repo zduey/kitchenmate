@@ -17,8 +17,9 @@ if TYPE_CHECKING:
 @pytest.fixture
 def client() -> Generator[TestClient, None, None]:
     """Create a test client for the FastAPI app with caching disabled."""
-    # Disable caching for tests by default
-    test_settings = Settings(cache_enabled=False)
+    # Disable caching and Supabase auth for tests by default
+    # (explicit None overrides .env file values)
+    test_settings = Settings(cache_enabled=False, supabase_jwt_secret=None)
     app.dependency_overrides[get_settings] = lambda: test_settings
     with TestClient(app) as test_client:
         yield test_client
@@ -86,7 +87,6 @@ def settings_with_api_key_allow_all(client: TestClient) -> Generator[None, None,
 def settings_with_supabase(client: TestClient) -> Generator[Settings, None, None]:
     """Override settings with Supabase configuration."""
     test_settings = Settings(
-        supabase_url="https://test.supabase.co",
         supabase_jwt_secret="test-secret-key-at-least-32-characters-long",
     )
     app.dependency_overrides[get_settings] = lambda: test_settings

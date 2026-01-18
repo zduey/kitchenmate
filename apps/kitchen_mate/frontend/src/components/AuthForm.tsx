@@ -24,9 +24,8 @@ export function AuthForm() {
       } else {
         setStep("check-email");
       }
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to send magic link";
-      setError(message);
+    } catch {
+      setError("Failed to send magic link");
     } finally {
       setLoading(false);
     }

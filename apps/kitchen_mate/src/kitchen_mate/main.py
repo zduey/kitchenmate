@@ -17,10 +17,12 @@ from kitchen_mate.db import init_db
 from kitchen_mate.routes import auth, clip, convert
 
 
+settings = get_settings()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Initialize resources on startup."""
-    settings = get_settings()
     if settings.cache_enabled:
         init_db(settings.cache_db_path)
     yield
@@ -34,13 +36,11 @@ app = FastAPI(
 )
 
 # Configure CORS to allow frontend to send cookies
+# Origins can be comma-separated (e.g., "http://localhost:5173,https://example.com")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",  # Vite dev server
-        "https://kitchenmate.onrender.com",  # Production
-    ],
-    allow_credentials=True,  # Allow cookies
+    allow_origins=[origin.strip() for origin in settings.cors_origins.split(",")],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
