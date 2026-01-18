@@ -3,15 +3,19 @@
 from __future__ import annotations
 
 import ipaddress
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Path to .env file relative to this config file (apps/kitchen_mate/.env)
+_ENV_FILE = Path(__file__).parent.parent.parent / ".env"
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="ignore"
+        env_file=_ENV_FILE, env_file_encoding="utf-8", case_sensitive=False, extra="ignore"
     )
 
     anthropic_api_key: str | None = None

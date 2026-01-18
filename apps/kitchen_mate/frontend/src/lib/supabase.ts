@@ -6,6 +6,13 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 // Auth is optional - app works without Supabase configured
 export const isAuthEnabled = Boolean(supabaseUrl && supabaseAnonKey);
 
+// Log tenant mode on startup
+if (isAuthEnabled) {
+  console.log("[KitchenMate] Running in MULTI-TENANT mode (Supabase auth enabled)");
+} else {
+  console.log("[KitchenMate] Running in SINGLE-TENANT mode (no authentication)");
+}
+
 export const supabase: SupabaseClient | null =
   supabaseUrl && supabaseAnonKey
     ? createClient(supabaseUrl, supabaseAnonKey, {
