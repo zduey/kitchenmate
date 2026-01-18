@@ -31,7 +31,13 @@ export interface ClipRequest {
   timeout?: number;
   use_llm_fallback?: boolean;
   force_llm?: boolean;
-  stream?: boolean;
+  force_refresh?: boolean;
+}
+
+export interface ClipResponse {
+  recipe: Recipe;
+  cached: boolean;
+  content_changed: boolean | null;
 }
 
 export interface ConvertRequest {
@@ -42,23 +48,3 @@ export interface ConvertRequest {
 export interface ApiError {
   detail: string;
 }
-
-export type ClipStage = "fetching" | "parsing" | "llm" | "complete" | "error";
-
-export interface ClipProgressEvent {
-  stage: Exclude<ClipStage, "complete" | "error">;
-  message: string;
-}
-
-export interface ClipCompleteEvent {
-  stage: "complete";
-  recipe: Recipe;
-}
-
-export interface ClipErrorEvent {
-  stage: "error";
-  message: string;
-  status: number;
-}
-
-export type ClipStreamEvent = ClipProgressEvent | ClipCompleteEvent | ClipErrorEvent;

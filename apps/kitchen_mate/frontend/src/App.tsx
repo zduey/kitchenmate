@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Recipe } from "./types/recipe";
-import { clipRecipeWithProgress, ClipError } from "./api/clip";
+import { clipRecipe, ClipError } from "./api/clip";
 import { RecipeForm } from "./components/RecipeForm";
 import { RecipeCard } from "./components/RecipeCard";
 import { LoadingSpinner } from "./components/LoadingSpinner";
@@ -8,7 +8,7 @@ import { ErrorMessage } from "./components/ErrorMessage";
 
 type AppState =
   | { status: "idle" }
-  | { status: "loading"; url: string; forceLlm: boolean; progressMessage: string }
+  | { status: "loading"; url: string; forceLlm: boolean }
   | { status: "success"; url: string; recipe: Recipe }
   | { status: "error"; url: string; forceLlm: boolean; message: string };
 
@@ -16,18 +16,10 @@ function App() {
   const [state, setState] = useState<AppState>({ status: "idle" });
 
   const handleSubmit = async (url: string, forceLlm: boolean) => {
-    setState({ status: "loading", url, forceLlm, progressMessage: "Starting..." });
+    setState({ status: "loading", url, forceLlm });
 
     try {
-      const recipe = await clipRecipeWithProgress(url, (event) => {
-        if (event.stage !== "complete" && event.stage !== "error") {
-          setState((prev) =>
-            prev.status === "loading"
-              ? { ...prev, progressMessage: event.message }
-              : prev
-          );
-        }
-      }, forceLlm);
+      const recipe = await clipRecipe(url, forceLlm);
       setState({ status: "success", url, recipe });
     } catch (error) {
       const message =
@@ -62,7 +54,7 @@ function App() {
         </div>
 
         {state.status === "loading" && (
-          <LoadingSpinner message={state.progressMessage} />
+          <LoadingSpinner message="Extracting recipe..." />
         )}
 
         {state.status === "error" && (
