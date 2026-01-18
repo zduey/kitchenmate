@@ -45,10 +45,6 @@ class ClipRequest(BaseModel):
         default=False,
         description="Bypass cache and re-fetch the recipe, checking for content changes",
     )
-    stream: bool = Field(
-        default=False,
-        description="Stream progress updates via Server-Sent Events",
-    )
 
 
 class ClipResponse(BaseModel):
