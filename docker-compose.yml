@@ -7,4 +7,9 @@ services:
       - "8000:8000"
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - LLM_ALLOWED_IPS=${LLM_ALLOWED_IPS:-}
+      - CORS_ORIGINS=${CORS_ORIGINS:-}
+      - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET:-}
+      - VITE_SUPABASE_URL=${VITE_SUPABASE_URL:-}
+      - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY:-}
     restart: unless-stopped
