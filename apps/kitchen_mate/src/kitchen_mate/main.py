@@ -28,15 +28,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Get settings at startup (allows dependency injection override for tests)
     settings = get_settings()
 
-    # Debug: print JWT secret status
-    print(f"[KitchenMate] SUPABASE_JWT_SECRET is set: {settings.supabase_jwt_secret is not None}")
-
-    # Log tenant mode
-    if settings.is_multi_tenant:
-        print("[KitchenMate] Running in MULTI-TENANT mode (Supabase auth enabled)")
-    else:
-        print("[KitchenMate] Running in SINGLE-TENANT mode (no authentication)")
-
     if settings.cache_enabled:
         init_db(settings.cache_db_path)
     yield

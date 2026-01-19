@@ -19,7 +19,7 @@ def client() -> Generator[TestClient, None, None]:
     """Create a test client for the FastAPI app with caching disabled."""
     # Disable caching and Supabase auth for tests by default
     # (explicit None overrides .env file values)
-    test_settings = Settings(cache_enabled=False, supabase_jwt_secret=None)
+    test_settings = Settings(cache_enabled=False, supabase_jwt_secret=None, supabase_url=None)
     app.dependency_overrides[get_settings] = lambda: test_settings
     with TestClient(app) as test_client:
         yield test_client
@@ -29,7 +29,9 @@ def client() -> Generator[TestClient, None, None]:
 @pytest.fixture
 def settings_with_api_key(client: TestClient) -> Generator[None, None, None]:
     """Override settings to include an API key."""
-    test_settings = Settings(anthropic_api_key="test-api-key", cache_enabled=False)
+    test_settings = Settings(
+        anthropic_api_key="test-api-key", cache_enabled=False, supabase_url=None
+    )
     app.dependency_overrides[get_settings] = lambda: test_settings
     yield
     app.dependency_overrides.clear()
@@ -38,7 +40,7 @@ def settings_with_api_key(client: TestClient) -> Generator[None, None, None]:
 @pytest.fixture
 def settings_without_api_key(client: TestClient) -> Generator[None, None, None]:
     """Override settings to have no API key."""
-    test_settings = Settings(anthropic_api_key=None, cache_enabled=False)
+    test_settings = Settings(anthropic_api_key=None, cache_enabled=False, supabase_url=None)
     app.dependency_overrides[get_settings] = lambda: test_settings
     yield
     app.dependency_overrides.clear()
@@ -51,6 +53,7 @@ def settings_with_api_key_and_ip_whitelist(client: TestClient) -> Generator[None
         anthropic_api_key="test-api-key",
         llm_allowed_ips="127.0.0.1,192.168.1.0/24",
         cache_enabled=False,
+        supabase_url=None,
     )
     app.dependency_overrides[get_settings] = lambda: test_settings
     yield
@@ -64,6 +67,7 @@ def settings_with_api_key_no_whitelist(client: TestClient) -> Generator[None, No
         anthropic_api_key="test-api-key",
         llm_allowed_ips=None,
         cache_enabled=False,
+        supabase_url=None,
     )
     app.dependency_overrides[get_settings] = lambda: test_settings
     yield
@@ -77,6 +81,7 @@ def settings_with_api_key_allow_all(client: TestClient) -> Generator[None, None,
         anthropic_api_key="test-api-key",
         llm_allowed_ips="0.0.0.0/0",
         cache_enabled=False,
+        supabase_url=None,
     )
     app.dependency_overrides[get_settings] = lambda: test_settings
     yield
@@ -85,9 +90,10 @@ def settings_with_api_key_allow_all(client: TestClient) -> Generator[None, None,
 
 @pytest.fixture
 def settings_with_supabase(client: TestClient) -> Generator[Settings, None, None]:
-    """Override settings with Supabase configuration."""
+    """Override settings with Supabase configuration for HS256 JWT verification."""
     test_settings = Settings(
         supabase_jwt_secret="test-secret-key-at-least-32-characters-long",
+        supabase_url=None,
     )
     app.dependency_overrides[get_settings] = lambda: test_settings
     yield test_settings

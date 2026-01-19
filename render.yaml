@@ -18,9 +18,8 @@ services:
       - key: CORS_ORIGINS
         sync: false  # Set manually in Render dashboard
       # Multi-tenant mode (Supabase authentication)
-      - key: SUPABASE_JWT_SECRET
-        sync: false  # Set manually in Render dashboard (secret, enables multi-tenant)
-      - key: VITE_SUPABASE_URL
-        sync: false  # Set manually in Render dashboard (frontend build-time)
-      - key: VITE_SUPABASE_ANON_KEY
-        sync: false  # Set manually in Render dashboard (frontend build-time)
+      # SUPABASE_URL is used by both backend (JWKS verification) and frontend (auth client)
+      - key: SUPABASE_URL
+        sync: false  # Set manually in Render dashboard (enables multi-tenant)
+      - key: SUPABASE_ANON_KEY
+        sync: false  # Set manually in Render dashboard (frontend auth client)

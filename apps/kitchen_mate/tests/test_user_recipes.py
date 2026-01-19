@@ -42,6 +42,7 @@ def client_with_db() -> Generator[TestClient, None, None]:
         cache_enabled=True,
         cache_db_path=db_path,
         supabase_jwt_secret=None,  # Single-tenant mode
+        supabase_url=None,  # Ensure single-tenant mode (override .env)
     )
     app.dependency_overrides[get_settings] = lambda: test_settings
 
@@ -64,6 +65,7 @@ def client_with_db_multi_tenant() -> Generator[tuple[TestClient, str], None, Non
         cache_enabled=True,
         cache_db_path=db_path,
         supabase_jwt_secret=jwt_secret,
+        supabase_url=None,  # Use HS256 verification (not ES256 JWKS)
     )
     app.dependency_overrides[get_settings] = lambda: test_settings
 
