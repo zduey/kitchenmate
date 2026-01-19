@@ -116,9 +116,7 @@ async def save_recipe(
     except LLMNotAllowedError as error:
         raise HTTPException(status_code=403, detail=str(error)) from error
     except (RecipeParsingError, LLMError) as error:
-        raise HTTPException(
-            status_code=422, detail=f"Failed to parse recipe: {error}"
-        ) from error
+        raise HTTPException(status_code=422, detail=f"Failed to parse recipe: {error}") from error
     except RecipeClipperError as error:
         raise HTTPException(status_code=500, detail=str(error)) from error
 
