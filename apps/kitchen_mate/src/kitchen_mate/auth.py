@@ -88,10 +88,7 @@ def verify_jwt_token(token: str, settings: Settings) -> dict:
             )
         else:
             logger.warning("No suitable verification method for algorithm: %s", alg)
-            raise HTTPException(
-                status_code=500,
-                detail=f"Cannot verify JWT with algorithm {alg}"
-            )
+            raise HTTPException(status_code=500, detail=f"Cannot verify JWT with algorithm {alg}")
 
         return payload
 
