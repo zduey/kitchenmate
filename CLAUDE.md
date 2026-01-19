@@ -22,9 +22,13 @@ kitchenmate/
 │       │   ├── __init__.py
 │       │   ├── main.py              # FastAPI app entry point
 │       │   ├── config.py            # Settings management
+│       │   ├── auth.py              # Authentication utilities
+│       │   ├── db.py                # Database operations
+│       │   ├── extraction.py        # Shared recipe extraction logic
 │       │   ├── schemas.py           # Request/response models
 │       │   └── routes/
-│       │       └── clip.py          # /clip endpoint
+│       │       ├── clip.py          # /clip endpoint
+│       │       └── me.py            # /me/recipes endpoints
 │       ├── frontend/                # React SPA
 │       │   ├── src/
 │       │   │   ├── main.tsx         # React entry point
@@ -60,6 +64,17 @@ kitchenmate/
 ```
 
 ## Architecture and Design Principles
+
+### DRY (Don't Repeat Yourself)
+
+Extract shared logic into dedicated modules rather than duplicating code across files:
+
+- **Identify duplication**: When similar code appears in multiple places, extract it
+- **Create shared modules**: Place reusable logic in well-named modules (e.g., `extraction.py` for shared recipe extraction logic)
+- **Single source of truth**: Business logic should exist in exactly one place
+- **Update tests accordingly**: When refactoring, update test mocks to patch the new module locations
+
+Example: `extraction.py` consolidates recipe extraction logic used by both `/clip` and `/me/recipes` endpoints.
 
 ### Pure Functional Design
 

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
-import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -15,27 +13,22 @@ from recipe_clipper.exceptions import (
     RecipeNotFoundError,
     RecipeParsingError,
 )
-from recipe_clipper.http import fetch_url
-from recipe_clipper.models import Recipe
-from recipe_clipper.parsers.recipe_scrapers_parser import parse_with_recipe_scrapers
 
 from kitchen_mate.auth import User, get_user
-from kitchen_mate.config import Settings, get_settings, is_ip_allowed
+from kitchen_mate.config import Settings, get_settings
 from kitchen_mate.db import (
     delete_user_recipe,
     get_cached_recipe,
     get_user_recipe_with_lineage,
     get_user_recipes,
-    hash_content,
     save_user_recipe,
     store_recipe,
-    update_recipe,
     update_user_recipe,
 )
+from kitchen_mate.extraction import LLMNotAllowedError, extract_recipe, get_client_ip
 from kitchen_mate.schemas import (
     GetUserRecipeResponse,
     ListUserRecipesResponse,
-    Parser,
     RecipeLineage,
     SaveRecipeRequest,
     SaveRecipeResponse,
@@ -45,14 +38,7 @@ from kitchen_mate.schemas import (
 )
 
 
-logger = logging.getLogger(__name__)
 router = APIRouter()
-
-
-class LLMNotAllowedError(Exception):
-    """Raised when LLM fallback is not allowed for the client."""
-
-    pass
 
 
 @router.post("/me/recipes", status_code=201)
@@ -68,7 +54,7 @@ async def save_recipe(
     If the user has already saved this recipe, the existing entry is returned.
     """
     url = str(save_request.url)
-    client_ip = _get_client_ip(request)
+    client_ip = get_client_ip(request)
 
     try:
         # Check if recipe is already cached
@@ -93,7 +79,7 @@ async def save_recipe(
             )
 
         # Recipe not cached - need to parse it
-        recipe, parsed_with, content_hash = await _extract_and_cache_recipe(
+        recipe, parsed_with, content_hash, _ = await extract_recipe(
             url=url,
             timeout=save_request.timeout,
             use_llm_fallback=save_request.use_llm_fallback,
@@ -241,73 +227,3 @@ async def delete_recipe(
 
     if not deleted:
         raise HTTPException(status_code=404, detail="Recipe not found")
-
-
-# =============================================================================
-# Helper functions
-# =============================================================================
-
-
-async def _extract_and_cache_recipe(
-    url: str,
-    timeout: int,
-    use_llm_fallback: bool,
-    api_key: str | None,
-    client_ip: str | None,
-    allowed_ips: str | None,
-) -> tuple[Recipe, Parser, str | None]:
-    """Extract a recipe from a URL.
-
-    Returns:
-        Tuple of (recipe, parsed_with, content_hash)
-    """
-    # Fetch the page
-    response = await asyncio.to_thread(fetch_url, url, timeout=timeout)
-    content_hash = hash_content(response.content)
-
-    # Try recipe_scrapers first
-    try:
-        recipe = await asyncio.to_thread(parse_with_recipe_scrapers, response)
-        return recipe, Parser.recipe_scrapers, content_hash
-    except RecipeParsingError:
-        if not use_llm_fallback:
-            raise
-
-    # Fall back to LLM
-    _check_llm_allowed(client_ip, api_key, allowed_ips)
-    recipe = await _parse_with_llm(url, api_key)
-    return recipe, Parser.llm, content_hash
-
-
-async def _parse_with_llm(url: str, api_key: str | None) -> Recipe:
-    """Parse a recipe using Claude."""
-    from recipe_clipper.parsers.llm_parser import parse_with_claude
-
-    return await asyncio.to_thread(parse_with_claude, url, api_key)
-
-
-def _check_llm_allowed(client_ip: str | None, api_key: str | None, allowed_ips: str | None) -> None:
-    """Check if LLM usage is allowed. Raises appropriate errors if not."""
-    logger.info("LLM extraction attempted from IP: %s", client_ip)
-
-    if not api_key:
-        logger.warning("LLM extraction rejected: no API key configured")
-        raise LLMError("LLM extraction requires ANTHROPIC_API_KEY environment variable")
-
-    if not client_ip or not is_ip_allowed(client_ip, allowed_ips):
-        logger.warning("LLM extraction rejected: IP %s not in allowed list", client_ip)
-        raise LLMNotAllowedError("LLM extraction not enabled")
-
-    logger.info("LLM extraction allowed for IP: %s", client_ip)
-
-
-def _get_client_ip(request: Request) -> str | None:
-    """Get the real client IP, checking X-Forwarded-For header for proxied requests."""
-    forwarded_for = request.headers.get("x-forwarded-for")
-    if forwarded_for:
-        return forwarded_for.split(",")[0].strip()
-
-    if request.client:
-        return request.client.host
-
-    return None
