@@ -134,8 +134,6 @@ def test_save_and_list_recipe_single_tenant(
     assert data["source_url"] == "https://example.com/cake"
     assert data["is_new"] is True
 
-    user_recipe_id = data["user_recipe_id"]
-
     # List recipes
     response = client_with_db.get("/api/me/recipes")
 
@@ -351,7 +349,7 @@ def test_save_and_list_recipe_multi_tenant(
     token = create_test_jwt("user-123", "test@example.com", jwt_secret)
 
     # Store a recipe in the cache first
-    cached = store_recipe(
+    _ = store_recipe(
         "https://example.com/cake",
         sample_recipe,
         "abc123hash",
@@ -496,9 +494,7 @@ def test_list_recipes_pagination(client_with_db: TestClient, sample_recipe: Reci
     assert data["next_cursor"] is None
 
 
-def test_list_recipes_filter_by_modified(
-    client_with_db: TestClient, sample_recipe: Recipe
-) -> None:
+def test_list_recipes_filter_by_modified(client_with_db: TestClient, sample_recipe: Recipe) -> None:
     """Test filtering recipes by modified status."""
     # Create 2 recipes
     store_recipe("https://example.com/recipe1", sample_recipe, "hash1", Parser.recipe_scrapers)

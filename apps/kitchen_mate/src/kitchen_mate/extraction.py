@@ -45,9 +45,7 @@ def get_client_ip(request: Request) -> str | None:
     return None
 
 
-def check_llm_allowed(
-    client_ip: str | None, api_key: str | None, allowed_ips: str | None
-) -> None:
+def check_llm_allowed(client_ip: str | None, api_key: str | None, allowed_ips: str | None) -> None:
     """Check if LLM usage is allowed for this request.
 
     Args:
