@@ -2,13 +2,22 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Annotated
+from urllib.parse import unquote
 
+import httpx
+import jwt
 from fastapi import Cookie, Depends, HTTPException
-from jose import JWTError, jwt
+from jwt import PyJWKClient
 from pydantic import BaseModel
 
 from kitchen_mate.config import Settings, get_settings
+
+logger = logging.getLogger(__name__)
+
+# Cache the JWKS client to avoid fetching keys on every request
+_jwks_clients: dict[str, PyJWKClient] = {}
 
 
 class User(BaseModel):
@@ -22,12 +31,26 @@ class User(BaseModel):
 DEFAULT_USER = User(id="local", email=None)
 
 
+def get_jwks_client(supabase_url: str) -> PyJWKClient:
+    """Get or create a cached JWKS client for the Supabase project."""
+    if supabase_url not in _jwks_clients:
+        # Supabase GoTrue exposes JWKS at /auth/v1/.well-known/jwks.json
+        jwks_url = f"{supabase_url.rstrip('/')}/auth/v1/.well-known/jwks.json"
+        logger.info("Creating JWKS client for: %s", jwks_url)
+        _jwks_clients[supabase_url] = PyJWKClient(jwks_url)
+    return _jwks_clients[supabase_url]
+
+
 def verify_jwt_token(token: str, settings: Settings) -> dict:
     """Verify Supabase JWT token and return claims.
 
+    Supports both:
+    - HS256 with JWT secret (legacy)
+    - ES256 with JWKS from Supabase URL
+
     Args:
         token: JWT access token from Supabase
-        settings: Application settings with JWT secret
+        settings: Application settings
 
     Returns:
         Decoded JWT claims dictionary
@@ -35,20 +58,51 @@ def verify_jwt_token(token: str, settings: Settings) -> dict:
     Raises:
         HTTPException: If token is invalid or verification fails
     """
-    if not settings.supabase_jwt_secret:
+    if not settings.supabase_jwt_secret and not settings.supabase_url:
         raise HTTPException(status_code=500, detail="Authentication not configured")
 
     try:
-        # Verify and decode the JWT
-        payload = jwt.decode(
-            token,
-            settings.supabase_jwt_secret,
-            algorithms=["HS256"],
-            audience="authenticated",  # Supabase default audience
-        )
+        # Get the token header to determine algorithm
+        unverified_header = jwt.get_unverified_header(token)
+        alg = unverified_header.get("alg", "unknown")
+        logger.info("JWT algorithm: %s", alg)
+
+        if alg == "ES256" and settings.supabase_url:
+            # Use JWKS for ES256
+            jwks_client = get_jwks_client(settings.supabase_url)
+            signing_key = jwks_client.get_signing_key_from_jwt(token)
+            payload = jwt.decode(
+                token,
+                signing_key.key,
+                algorithms=["ES256"],
+                audience="authenticated",
+            )
+        elif settings.supabase_jwt_secret:
+            # Use JWT secret for HS256
+            payload = jwt.decode(
+                token,
+                settings.supabase_jwt_secret,
+                algorithms=["HS256"],
+                audience="authenticated",
+            )
+        else:
+            logger.warning("No suitable verification method for algorithm: %s", alg)
+            raise HTTPException(status_code=500, detail=f"Cannot verify JWT with algorithm {alg}")
+
         return payload
-    except JWTError as error:
+
+    except jwt.ExpiredSignatureError as error:
+        logger.warning("JWT token expired")
+        raise HTTPException(status_code=401, detail="Token expired") from error
+    except jwt.InvalidAudienceError as error:
+        logger.warning("JWT audience mismatch: %s", error)
+        raise HTTPException(status_code=401, detail="Invalid token audience") from error
+    except jwt.PyJWTError as error:
+        logger.warning("JWT verification failed: %s", error)
         raise HTTPException(status_code=401, detail="Invalid authentication token") from error
+    except httpx.HTTPError as error:
+        logger.error("Failed to fetch JWKS: %s", error)
+        raise HTTPException(status_code=500, detail="Failed to verify token") from error
 
 
 def extract_user_from_claims(claims: dict) -> User:
@@ -87,7 +141,8 @@ async def get_current_user(
     if not access_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    claims = verify_jwt_token(access_token, settings)
+    token = unquote(access_token)
+    claims = verify_jwt_token(token, settings)
     return extract_user_from_claims(claims)
 
 
@@ -111,7 +166,8 @@ async def get_current_user_optional(
         return None
 
     try:
-        claims = verify_jwt_token(access_token, settings)
+        token = unquote(access_token)
+        claims = verify_jwt_token(token, settings)
         return extract_user_from_claims(claims)
     except HTTPException:
         return None
@@ -145,7 +201,11 @@ async def get_user(
 
     # Multi-tenant mode: require authentication
     if not access_token:
+        logger.warning("No access_token cookie received")
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    claims = verify_jwt_token(access_token, settings)
+    # URL-decode the token (in case it was encoded when set)
+    token = unquote(access_token)
+    logger.info("Received access_token cookie (length: %d)", len(token))
+    claims = verify_jwt_token(token, settings)
     return extract_user_from_claims(claims)

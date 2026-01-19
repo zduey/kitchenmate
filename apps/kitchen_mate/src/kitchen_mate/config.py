@@ -22,8 +22,9 @@ class Settings(BaseSettings):
     default_timeout: int = 10
     llm_allowed_ips: str | None = None
 
-    # Supabase authentication (only JWT secret needed for backend verification)
-    supabase_jwt_secret: str | None = None
+    # Supabase authentication
+    supabase_jwt_secret: str | None = None  # For HS256 verification (legacy)
+    supabase_url: str | None = None  # For ES256 JWKS verification
 
     # CORS configuration
     cors_origins: str = "http://localhost:5173"
@@ -35,12 +36,12 @@ class Settings(BaseSettings):
     @property
     def is_multi_tenant(self) -> bool:
         """Check if running in multi-tenant mode (auth enabled)."""
-        return self.supabase_jwt_secret is not None
+        return self.supabase_jwt_secret is not None or self.supabase_url is not None
 
     @property
     def is_single_tenant(self) -> bool:
         """Check if running in single-tenant mode (no auth)."""
-        return self.supabase_jwt_secret is None
+        return not self.is_multi_tenant
 
 
 def get_settings() -> Settings:

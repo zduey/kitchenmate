@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
+import jwt
 from fastapi.testclient import TestClient
-from jose import jwt
 
 from kitchen_mate.config import Settings
 
@@ -82,7 +82,7 @@ def test_get_current_user_expired_token(
     response = client.get("/api/auth/me", cookies={"access_token": token})
 
     assert response.status_code == 401
-    assert "Invalid authentication token" in response.json()["detail"]
+    assert "Token expired" in response.json()["detail"]
 
 
 def test_get_current_user_no_supabase_config(client: TestClient) -> None:
@@ -122,7 +122,7 @@ def test_get_current_user_wrong_audience(
     response = client.get("/api/auth/me", cookies={"access_token": token})
 
     assert response.status_code == 401
-    assert "Invalid authentication token" in response.json()["detail"]
+    assert "Invalid token audience" in response.json()["detail"]
 
 
 # Tests for get_user dependency (single-tenant vs multi-tenant)
@@ -133,7 +133,7 @@ async def test_get_user_single_tenant_returns_default_user() -> None:
     from kitchen_mate.auth import DEFAULT_USER, get_user
     from kitchen_mate.config import Settings
 
-    settings = Settings(supabase_jwt_secret=None)
+    settings = Settings(supabase_jwt_secret=None, supabase_url=None)
     assert settings.is_single_tenant
 
     # In single-tenant mode, get_user should return DEFAULT_USER without any token
@@ -151,7 +151,10 @@ async def test_get_user_multi_tenant_requires_auth() -> None:
     from kitchen_mate.auth import get_user
     from kitchen_mate.config import Settings
 
-    settings = Settings(supabase_jwt_secret="test-secret-key-at-least-32-characters-long")
+    settings = Settings(
+        supabase_jwt_secret="test-secret-key-at-least-32-characters-long",
+        supabase_url=None,
+    )
     assert settings.is_multi_tenant
 
     # In multi-tenant mode, get_user should raise 401 without token
@@ -168,7 +171,7 @@ async def test_get_user_multi_tenant_with_valid_token() -> None:
     from kitchen_mate.config import Settings
 
     secret = "test-secret-key-at-least-32-characters-long"
-    settings = Settings(supabase_jwt_secret=secret)
+    settings = Settings(supabase_jwt_secret=secret, supabase_url=None)
 
     token = create_test_jwt("user-456", "multi@example.com", secret)
 

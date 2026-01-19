@@ -14,23 +14,19 @@ from fastapi.staticfiles import StaticFiles
 
 from kitchen_mate.config import get_settings
 from kitchen_mate.db import init_db
-from kitchen_mate.routes import auth, clip, convert
+from kitchen_mate.routes import auth, clip, convert, me
 
 
-settings = get_settings()
+# Get settings at module load for CORS configuration
+# (middleware must be configured before app startup)
+_startup_settings = get_settings()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Initialize resources on startup."""
-    # Debug: print JWT secret status
-    print(f"[KitchenMate] SUPABASE_JWT_SECRET is set: {settings.supabase_jwt_secret is not None}")
-
-    # Log tenant mode
-    if settings.is_multi_tenant:
-        print("[KitchenMate] Running in MULTI-TENANT mode (Supabase auth enabled)")
-    else:
-        print("[KitchenMate] Running in SINGLE-TENANT mode (no authentication)")
+    # Get settings at startup (allows dependency injection override for tests)
+    settings = get_settings()
 
     if settings.cache_enabled:
         init_db(settings.cache_db_path)
@@ -48,7 +44,7 @@ app = FastAPI(
 # Origins can be comma-separated (e.g., "http://localhost:5173,https://example.com")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[origin.strip() for origin in settings.cors_origins.split(",")],
+    allow_origins=[origin.strip() for origin in _startup_settings.cors_origins.split(",")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -57,6 +53,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api")
 app.include_router(clip.router, prefix="/api")
 app.include_router(convert.router, prefix="/api")
+app.include_router(me.router, prefix="/api")
 
 
 @app.get("/health")

@@ -3,14 +3,14 @@ FROM node:24-slim AS frontend-builder
 
 WORKDIR /app/frontend
 
-# Accept Vite environment variables as build arguments
+# Accept Supabase environment variables as build arguments
 # These are required for multi-tenant mode (Supabase auth)
-ARG VITE_SUPABASE_URL
-ARG VITE_SUPABASE_ANON_KEY
+ARG SUPABASE_URL
+ARG SUPABASE_ANON_KEY
 
 # Set as environment variables so Vite can access them during build
-ENV VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
-ENV VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
+ENV SUPABASE_URL=${SUPABASE_URL}
+ENV SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
 
 # Copy frontend package files
 COPY apps/kitchen_mate/frontend/package*.json ./
@@ -21,7 +21,7 @@ RUN npm ci
 # Copy frontend source
 COPY apps/kitchen_mate/frontend/ ./
 
-# Build frontend (Vite will embed VITE_* env vars into the bundle)
+# Build frontend (Vite will embed SUPABASE_* env vars into the bundle)
 RUN npm run build
 
 # Stage 2: Python application

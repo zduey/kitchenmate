@@ -28,9 +28,10 @@ def test_clip_recipe_returns_json(client: TestClient) -> None:
         source_url="https://example.com/recipe",
     )
     mock_response = MagicMock()
+    mock_response.content = "<html>test</html>"
 
-    with patch("kitchen_mate.routes.clip.fetch_url", return_value=mock_response):
-        with patch("kitchen_mate.routes.clip.parse_with_recipe_scrapers", return_value=mock_recipe):
+    with patch("kitchen_mate.extraction.fetch_url", return_value=mock_response):
+        with patch("kitchen_mate.extraction.parse_with_recipe_scrapers", return_value=mock_recipe):
             response = client.post(
                 "/api/clip",
                 json={"url": "https://example.com/recipe", "use_llm_fallback": False},
@@ -47,10 +48,11 @@ def test_clip_recipe_returns_json(client: TestClient) -> None:
 def test_clip_recipe_not_found(client: TestClient) -> None:
     """Test handling of recipe not found error."""
     mock_response = MagicMock()
+    mock_response.content = "<html>test</html>"
 
-    with patch("kitchen_mate.routes.clip.fetch_url", return_value=mock_response):
+    with patch("kitchen_mate.extraction.fetch_url", return_value=mock_response):
         with patch(
-            "kitchen_mate.routes.clip.parse_with_recipe_scrapers",
+            "kitchen_mate.extraction.parse_with_recipe_scrapers",
             side_effect=RecipeParsingError("Recipe not found"),
         ):
             response = client.post(
@@ -65,7 +67,7 @@ def test_clip_recipe_not_found(client: TestClient) -> None:
 def test_clip_recipe_network_error(client: TestClient) -> None:
     """Test handling of network error."""
     with patch(
-        "kitchen_mate.routes.clip.fetch_url",
+        "kitchen_mate.extraction.fetch_url",
         side_effect=NetworkError("Connection failed"),
     ):
         response = client.post(
@@ -82,10 +84,11 @@ def test_clip_recipe_llm_fallback_without_api_key(
 ) -> None:
     """Test that LLM fallback fails without API key when parsing fails."""
     mock_response = MagicMock()
+    mock_response.content = "<html>test</html>"
 
-    with patch("kitchen_mate.routes.clip.fetch_url", return_value=mock_response):
+    with patch("kitchen_mate.extraction.fetch_url", return_value=mock_response):
         with patch(
-            "kitchen_mate.routes.clip.parse_with_recipe_scrapers",
+            "kitchen_mate.extraction.parse_with_recipe_scrapers",
             side_effect=RecipeParsingError("Not supported"),
         ):
             response = client.post(
@@ -122,10 +125,11 @@ def test_clip_recipe_llm_fallback_ip_not_allowed(
 ) -> None:
     """Test that LLM fallback is blocked when IP is not in whitelist."""
     mock_response = MagicMock()
+    mock_response.content = "<html>test</html>"
 
-    with patch("kitchen_mate.routes.clip.fetch_url", return_value=mock_response):
+    with patch("kitchen_mate.extraction.fetch_url", return_value=mock_response):
         with patch(
-            "kitchen_mate.routes.clip.parse_with_recipe_scrapers",
+            "kitchen_mate.extraction.parse_with_recipe_scrapers",
             side_effect=RecipeParsingError("Not supported"),
         ):
             response = client.post(
@@ -142,10 +146,11 @@ def test_clip_recipe_llm_fallback_no_whitelist_blocks_all(
 ) -> None:
     """Test that LLM fallback is blocked when no whitelist is configured."""
     mock_response = MagicMock()
+    mock_response.content = "<html>test</html>"
 
-    with patch("kitchen_mate.routes.clip.fetch_url", return_value=mock_response):
+    with patch("kitchen_mate.extraction.fetch_url", return_value=mock_response):
         with patch(
-            "kitchen_mate.routes.clip.parse_with_recipe_scrapers",
+            "kitchen_mate.extraction.parse_with_recipe_scrapers",
             side_effect=RecipeParsingError("Not supported"),
         ):
             response = client.post(
@@ -162,11 +167,12 @@ def test_clip_recipe_llm_fallback_ip_allowed(
 ) -> None:
     """Test that LLM fallback works when IP is allowed."""
     mock_response = MagicMock()
+    mock_response.content = "<html>test</html>"
 
-    with patch("kitchen_mate.routes.clip.is_ip_allowed", return_value=True):
-        with patch("kitchen_mate.routes.clip.fetch_url", return_value=mock_response):
+    with patch("kitchen_mate.extraction.is_ip_allowed", return_value=True):
+        with patch("kitchen_mate.extraction.fetch_url", return_value=mock_response):
             with patch(
-                "kitchen_mate.routes.clip.parse_with_recipe_scrapers",
+                "kitchen_mate.extraction.parse_with_recipe_scrapers",
                 side_effect=RecipeParsingError("Not supported"),
             ):
                 with patch("recipe_clipper.parsers.llm_parser.parse_with_claude") as mock_llm:
@@ -197,9 +203,10 @@ def test_clip_recipe_no_llm_fallback_ignores_whitelist(
         source_url="https://example.com/recipe",
     )
     mock_response = MagicMock()
+    mock_response.content = "<html>test</html>"
 
-    with patch("kitchen_mate.routes.clip.fetch_url", return_value=mock_response):
-        with patch("kitchen_mate.routes.clip.parse_with_recipe_scrapers", return_value=mock_recipe):
+    with patch("kitchen_mate.extraction.fetch_url", return_value=mock_response):
+        with patch("kitchen_mate.extraction.parse_with_recipe_scrapers", return_value=mock_recipe):
             response = client.post(
                 "/api/clip",
                 json={"url": "https://example.com/recipe", "use_llm_fallback": False},
