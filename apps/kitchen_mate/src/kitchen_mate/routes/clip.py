@@ -121,7 +121,7 @@ async def _extract_recipe(
 
     # Fetch the page
     response = await asyncio.to_thread(fetch_url, url, timeout=timeout)
-    content_hash = hash_content(response.text) if cache_enabled else None
+    content_hash = hash_content(response.content) if cache_enabled else None
 
     # Check if content changed (for force_refresh)
     content_changed = None
