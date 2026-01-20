@@ -34,7 +34,7 @@ export function RecipeListItem({ recipe }: RecipeListItemProps) {
 
         {/* Modified badge */}
         {recipe.is_modified && (
-          <span className="absolute top-2 right-2 px-2 py-1 bg-blue-600 text-white text-xs font-medium rounded">
+          <span className="absolute top-2 right-2 px-2 py-1 bg-coral text-white text-xs font-medium rounded">
             Modified
           </span>
         )}
@@ -42,7 +42,7 @@ export function RecipeListItem({ recipe }: RecipeListItemProps) {
 
       {/* Content */}
       <div className="p-4">
-        <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-2">
+        <h3 className="font-semibold text-brown-dark group-hover:text-coral transition-colors line-clamp-2">
           {recipe.title}
         </h3>
 
@@ -52,7 +52,7 @@ export function RecipeListItem({ recipe }: RecipeListItemProps) {
             {recipe.tags.slice(0, 3).map((tag, index) => (
               <span
                 key={index}
-                className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full"
+                className="px-2 py-0.5 bg-gray-100 text-brown-medium text-xs rounded-full"
               >
                 {tag}
               </span>

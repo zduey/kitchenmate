@@ -170,7 +170,7 @@ export function SavedRecipeView() {
         <p className="text-red-600 mb-4">{error}</p>
         <Link
           to="/"
-          className="text-blue-600 hover:text-blue-800"
+          className="text-coral hover:text-coral-dark"
         >
           Back to recipes
         </Link>
@@ -181,10 +181,10 @@ export function SavedRecipeView() {
   if (!userRecipe || !editedRecipe) {
     return (
       <div className="py-12 text-center">
-        <p className="text-gray-600 mb-4">Recipe not found</p>
+        <p className="text-brown-medium mb-4">Recipe not found</p>
         <Link
           to="/"
-          className="text-blue-600 hover:text-blue-800"
+          className="text-coral hover:text-coral-dark"
         >
           Back to recipes
         </Link>
@@ -216,14 +216,14 @@ export function SavedRecipeView() {
                 onChange={(e) =>
                   setEditedRecipe({ ...editedRecipe, title: e.target.value })
                 }
-                className="text-2xl font-bold text-gray-900 w-full border border-gray-300 rounded px-2 py-1"
+                className="text-2xl font-bold text-brown-dark w-full border border-gray-300 rounded px-2 py-1"
               />
             ) : (
-              <h2 className="text-2xl font-bold text-gray-900">{recipe.title}</h2>
+              <h2 className="text-2xl font-bold text-brown-dark">{recipe.title}</h2>
             )}
 
             {userRecipe.is_modified && !isEditing && (
-              <span className="inline-block mt-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
+              <span className="inline-block mt-2 px-2 py-1 bg-coral bg-opacity-10 text-coral-dark text-xs rounded">
                 Modified from original
               </span>
             )}
@@ -233,7 +233,7 @@ export function SavedRecipeView() {
             <div className="flex gap-2 ml-4">
               <button
                 onClick={() => setIsEditing(true)}
-                className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded"
+                className="p-2 text-brown-medium hover:text-coral hover:bg-coral hover:bg-opacity-10 rounded"
                 title="Edit recipe"
               >
                 <svg
@@ -252,7 +252,7 @@ export function SavedRecipeView() {
               </button>
               <button
                 onClick={() => setShowDeleteConfirm(true)}
-                className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded"
+                className="p-2 text-brown-medium hover:text-red-600 hover:bg-red-50 rounded"
                 title="Delete recipe"
               >
                 <svg
@@ -280,7 +280,7 @@ export function SavedRecipeView() {
               href={userRecipe.source_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 hover:underline"
+              className="inline-flex items-center text-sm text-coral hover:text-coral-dark hover:underline"
             >
               <span className="truncate max-w-md">{userRecipe.source_url}</span>
               <svg
@@ -302,7 +302,7 @@ export function SavedRecipeView() {
 
         {/* Metadata */}
         {recipe.metadata && !isEditing && (
-          <div className="flex flex-wrap gap-4 mb-6 text-sm text-gray-600">
+          <div className="flex flex-wrap gap-4 mb-6 text-sm text-brown-medium">
             {recipe.metadata.author && (
               <span className="flex items-center">
                 <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -345,19 +345,19 @@ export function SavedRecipeView() {
 
         {/* Tags */}
         <div className="mb-6">
-          <h3 className="text-sm font-medium text-gray-700 mb-2">Tags</h3>
+          <h3 className="text-sm font-medium text-brown-medium mb-2">Tags</h3>
           {isEditing ? (
             <div>
               <div className="flex flex-wrap gap-2 mb-2">
                 {editedTags.map((tag) => (
                   <span
                     key={tag}
-                    className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-full"
+                    className="inline-flex items-center px-2 py-1 bg-coral bg-opacity-10 text-coral-dark text-sm rounded-full"
                   >
                     {tag}
                     <button
                       onClick={() => handleRemoveTag(tag)}
-                      className="ml-1 text-blue-600 hover:text-blue-800"
+                      className="ml-1 text-coral hover:text-coral-dark"
                     >
                       <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -377,7 +377,7 @@ export function SavedRecipeView() {
                 />
                 <button
                   onClick={handleAddTag}
-                  className="px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-sm"
+                  className="px-3 py-1 bg-gray-100 text-brown-medium rounded hover:bg-gray-200 text-sm"
                 >
                   Add
                 </button>
@@ -389,7 +389,7 @@ export function SavedRecipeView() {
                 userRecipe.tags?.map((tag) => (
                   <span
                     key={tag}
-                    className="px-2 py-1 bg-gray-100 text-gray-700 text-sm rounded-full"
+                    className="px-2 py-1 bg-gray-100 text-brown-medium text-sm rounded-full"
                   >
                     {tag}
                   </span>
@@ -403,7 +403,7 @@ export function SavedRecipeView() {
 
         {/* Notes */}
         <div className="mb-6">
-          <h3 className="text-sm font-medium text-gray-700 mb-2">Personal Notes</h3>
+          <h3 className="text-sm font-medium text-brown-medium mb-2">Personal Notes</h3>
           {isEditing ? (
             <textarea
               value={editedNotes}
@@ -413,7 +413,7 @@ export function SavedRecipeView() {
               rows={3}
             />
           ) : (
-            <p className="text-gray-600 text-sm">
+            <p className="text-brown-medium text-sm">
               {userRecipe.notes || "No notes added"}
             </p>
           )}
@@ -421,7 +421,7 @@ export function SavedRecipeView() {
 
         {/* Ingredients */}
         <div className="mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">Ingredients</h3>
+          <h3 className="text-lg font-semibold text-brown-dark mb-3">Ingredients</h3>
           {isEditing ? (
             <div className="space-y-2">
               {editedRecipe.ingredients.map((ingredient, index) => (
@@ -445,7 +445,7 @@ export function SavedRecipeView() {
               ))}
               <button
                 onClick={addIngredient}
-                className="text-sm text-blue-600 hover:text-blue-800"
+                className="text-sm text-coral hover:text-coral-dark"
               >
                 + Add Ingredient
               </button>
@@ -454,7 +454,7 @@ export function SavedRecipeView() {
             <ul className="space-y-2">
               {recipe.ingredients.map((ingredient, index) => (
                 <li key={index} className="flex items-start">
-                  <span className="text-blue-600 mr-2">•</span>
+                  <span className="text-coral mr-2">•</span>
                   <span>{ingredient.display_text || ingredient.name}</span>
                 </li>
               ))}
@@ -464,12 +464,12 @@ export function SavedRecipeView() {
 
         {/* Instructions */}
         <div className="mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">Instructions</h3>
+          <h3 className="text-lg font-semibold text-brown-dark mb-3">Instructions</h3>
           {isEditing ? (
             <div className="space-y-3">
               {editedRecipe.instructions.map((instruction, index) => (
                 <div key={index} className="flex gap-2 items-start">
-                  <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white text-sm rounded-full flex items-center justify-center mt-2">
+                  <span className="flex-shrink-0 w-6 h-6 bg-coral text-white text-sm rounded-full flex items-center justify-center mt-2">
                     {index + 1}
                   </span>
                   <textarea
@@ -490,7 +490,7 @@ export function SavedRecipeView() {
               ))}
               <button
                 onClick={addInstruction}
-                className="text-sm text-blue-600 hover:text-blue-800"
+                className="text-sm text-coral hover:text-coral-dark"
               >
                 + Add Step
               </button>
@@ -499,10 +499,10 @@ export function SavedRecipeView() {
             <ol className="space-y-3">
               {recipe.instructions.map((instruction, index) => (
                 <li key={index} className="flex">
-                  <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white text-sm rounded-full flex items-center justify-center mr-3 mt-0.5">
+                  <span className="flex-shrink-0 w-6 h-6 bg-coral text-white text-sm rounded-full flex items-center justify-center mr-3 mt-0.5">
                     {index + 1}
                   </span>
-                  <span className="text-gray-700">{instruction}</span>
+                  <span className="text-brown-medium">{instruction}</span>
                 </li>
               ))}
             </ol>
@@ -514,7 +514,7 @@ export function SavedRecipeView() {
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
             <button
               onClick={handleCancelEdit}
-              className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+              className="px-4 py-2 text-brown-medium hover:bg-gray-100 rounded-lg"
               disabled={isSaving}
             >
               Cancel
@@ -522,7 +522,7 @@ export function SavedRecipeView() {
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-2 bg-coral text-white rounded-lg hover:bg-coral-dark disabled:opacity-50"
             >
               {isSaving ? "Saving..." : "Save Changes"}
             </button>
@@ -534,7 +534,7 @@ export function SavedRecipeView() {
           <div className="flex justify-between items-center pt-4 border-t border-gray-200">
             <Link
               to="/"
-              className="text-blue-600 hover:text-blue-800 flex items-center"
+              className="text-coral hover:text-coral-dark flex items-center"
             >
               <svg className="h-5 w-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -550,17 +550,17 @@ export function SavedRecipeView() {
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            <h3 className="text-lg font-semibold text-brown-dark mb-2">
               Delete Recipe?
             </h3>
-            <p className="text-gray-600 mb-4">
+            <p className="text-brown-medium mb-4">
               Are you sure you want to remove this recipe from your collection? This action cannot be undone.
             </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
                 disabled={isDeleting}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+                className="px-4 py-2 text-brown-medium hover:bg-gray-100 rounded-lg"
               >
                 Cancel
               </button>

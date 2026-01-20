@@ -83,11 +83,11 @@ export function ClipRecipePage() {
   return (
     <div>
       <div className="mb-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">
-          Add a Recipe
+        <h2 className="text-xl font-semibold text-brown-dark mb-2">
+          Clip a Recipe
         </h2>
-        <p className="text-gray-600">
-          Paste a URL from any recipe website to extract and save it.
+        <p className="text-brown-medium">
+          Paste a URL from any recipe website to extract it.
         </p>
       </div>
 
@@ -112,39 +112,35 @@ export function ClipRecipePage() {
 
       {(state.status === "success" || state.status === "saved") && (
         <div>
-          {/* Save/View Actions */}
+          {/* Status message and actions */}
           <div className="mb-6 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
-            {state.status === "success" && isAuthorized && (
-              <div className="flex items-center justify-between">
-                <p className="text-gray-700">
-                  Recipe extracted successfully!
-                </p>
-                <button
-                  onClick={handleSave}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center"
-                >
-                  <svg
-                    className="h-5 w-5 mr-2"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+            {state.status === "success" && (
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <p className="text-brown-dark font-medium">Recipe extracted!</p>
+                  <p className="text-brown-medium text-sm">
+                    {isAuthorized
+                      ? "Save it to your collection or export it below."
+                      : "Export it below, or sign in to save it to your collection."}
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  {isAuthorized && (
+                    <button
+                      onClick={handleSave}
+                      className="px-4 py-2 text-sm bg-coral text-white rounded-lg hover:bg-coral-dark"
+                    >
+                      Save to Collection
+                    </button>
+                  )}
+                  <button
+                    onClick={handleClipAnother}
+                    className="px-4 py-2 text-sm border border-gray-300 text-brown-medium rounded-lg hover:bg-gray-50"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
-                    />
-                  </svg>
-                  Save to Collection
-                </button>
+                    Clip Another
+                  </button>
+                </div>
               </div>
-            )}
-
-            {state.status === "success" && !isAuthorized && (
-              <p className="text-gray-700">
-                Recipe extracted! Sign in to save it to your collection.
-              </p>
             )}
 
             {state.status === "saved" && (
@@ -168,13 +164,13 @@ export function ClipRecipePage() {
                 <div className="flex gap-3">
                   <button
                     onClick={handleViewSaved}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    className="px-4 py-2 bg-coral text-white rounded-lg hover:bg-coral-dark"
                   >
                     View Recipe
                   </button>
                   <button
                     onClick={handleClipAnother}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                    className="px-4 py-2 border border-gray-300 text-brown-medium rounded-lg hover:bg-gray-50"
                   >
                     Add Another
                   </button>

@@ -1,0 +1,11 @@
+<svg width="500" height="125" viewBox="0 0 500 125" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <linearGradient id="bookmarkGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#e85d3d;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#d64a2f;stop-opacity:1" />
+        </linearGradient>
+    </defs>
+    <path d="M 10 10 L 90 10 L 90 106.25 L 50 87.5 L 10 106.25 Z" fill="url(#bookmarkGradient)"/>
+    <text x="120" y="78" font-family="Crimson Pro, Georgia, serif" font-size="70" fill="#2c2416" font-weight="300">Reci</text>
+    <text x="270" y="78" font-family="Crimson Pro, Georgia, serif" font-size="70" fill="#2c2416" font-weight="600">pleased</text>
+</svg>
