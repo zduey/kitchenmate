@@ -16,7 +16,7 @@ from recipe_clipper.exceptions import (
 
 from kitchen_mate.auth import User, get_user
 from kitchen_mate.config import Settings, get_settings
-from kitchen_mate.db import (
+from kitchen_mate.database import (
     delete_user_recipe,
     get_cached_recipe,
     get_user_recipe_with_lineage,
@@ -58,11 +58,11 @@ async def save_recipe(
 
     try:
         # Check if recipe is already cached
-        cached = get_cached_recipe(url)
+        cached = await get_cached_recipe(url)
 
         if cached:
             # Recipe already exists - just save to user's collection
-            user_recipe, is_new = save_user_recipe(
+            user_recipe, is_new = await save_user_recipe(
                 user_id=user.id,
                 recipe_id=cached.id,
                 recipe_data=cached.recipe,
@@ -89,10 +89,10 @@ async def save_recipe(
         )
 
         # Store the parsed recipe
-        cached = store_recipe(url, recipe, content_hash, parsed_with)
+        cached = await store_recipe(url, recipe, content_hash, parsed_with)
 
         # Save to user's collection
-        user_recipe, is_new = save_user_recipe(
+        user_recipe, is_new = await save_user_recipe(
             user_id=user.id,
             recipe_id=cached.id,
             recipe_data=recipe,
@@ -133,7 +133,7 @@ async def list_recipes(
     # Parse tags
     tag_list = [t.strip() for t in tags.split(",")] if tags else None
 
-    recipes, next_cursor, has_more = get_user_recipes(
+    recipes, next_cursor, has_more = await get_user_recipes(
         user_id=user.id,
         cursor=cursor,
         limit=limit,
@@ -166,7 +166,7 @@ async def get_recipe(
     user: Annotated[User, Depends(get_user)],
 ) -> GetUserRecipeResponse:
     """Get full details of a specific recipe from the user's collection."""
-    result = get_user_recipe_with_lineage(user.id, recipe_id)
+    result = await get_user_recipe_with_lineage(user.id, recipe_id)
 
     if result is None:
         raise HTTPException(status_code=404, detail="Recipe not found")
@@ -197,7 +197,7 @@ async def update_recipe_endpoint(
     user: Annotated[User, Depends(get_user)],
 ) -> UpdateUserRecipeResponse:
     """Update a recipe in the user's collection."""
-    updated = update_user_recipe(
+    updated = await update_user_recipe(
         user_id=user.id,
         recipe_id=recipe_id,
         recipe_data=update_request.recipe,
@@ -221,7 +221,7 @@ async def delete_recipe(
     user: Annotated[User, Depends(get_user)],
 ) -> None:
     """Remove a recipe from the user's collection (soft delete)."""
-    deleted = delete_user_recipe(user.id, recipe_id)
+    deleted = await delete_user_recipe(user.id, recipe_id)
 
     if not deleted:
         raise HTTPException(status_code=404, detail="Recipe not found")
