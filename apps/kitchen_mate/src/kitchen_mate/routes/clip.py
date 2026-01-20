@@ -16,7 +16,7 @@ from recipe_clipper.exceptions import (
 from recipe_clipper.models import Recipe
 
 from kitchen_mate.config import Settings, get_settings
-from kitchen_mate.db import get_cached_recipe, store_recipe, update_recipe
+from kitchen_mate.database import get_cached_recipe, store_recipe, update_recipe
 from kitchen_mate.extraction import LLMNotAllowedError, extract_recipe, get_client_ip
 from kitchen_mate.schemas import ClipRequest, ClipResponse, Parser
 
@@ -37,7 +37,7 @@ async def clip_recipe(
     try:
         # Try cache first (unless force_refresh)
         if settings.cache_enabled and not clip_request.force_refresh:
-            cached = _get_from_cache(url, clip_request.force_llm)
+            cached = await _get_from_cache(url, clip_request.force_llm)
             if cached:
                 return ClipResponse(recipe=cached.recipe, cached=True)
 
@@ -55,7 +55,7 @@ async def clip_recipe(
 
         # Cache the result
         if settings.cache_enabled:
-            _save_to_cache(url, recipe, content_hash, parsed_with)
+            await _save_to_cache(url, recipe, content_hash, parsed_with)
 
         return ClipResponse(recipe=recipe, cached=False, content_changed=content_changed)
 
@@ -71,17 +71,17 @@ async def clip_recipe(
         raise HTTPException(status_code=500, detail=str(error)) from error
 
 
-def _get_from_cache(url: str, force_llm: bool):
+async def _get_from_cache(url: str, force_llm: bool):
     """Try to get a recipe from cache."""
     if force_llm:
-        return get_cached_recipe(url, parsed_with=Parser.llm)
-    return get_cached_recipe(url)
+        return await get_cached_recipe(url, parsed_with=Parser.llm)
+    return await get_cached_recipe(url)
 
 
-def _save_to_cache(url: str, recipe: Recipe, content_hash: str | None, parsed_with: Parser):
+async def _save_to_cache(url: str, recipe: Recipe, content_hash: str | None, parsed_with: Parser):
     """Save a recipe to cache."""
-    existing = get_cached_recipe(url)
+    existing = await get_cached_recipe(url)
     if existing:
-        update_recipe(url, recipe, content_hash, parsed_with)
+        await update_recipe(url, recipe, content_hash, parsed_with)
     else:
-        store_recipe(url, recipe, content_hash, parsed_with)
+        await store_recipe(url, recipe, content_hash, parsed_with)

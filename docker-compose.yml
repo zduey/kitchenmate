@@ -12,4 +12,10 @@ services:
       - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET:-}
       - VITE_SUPABASE_URL=${VITE_SUPABASE_URL:-}
       - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY:-}
+      - CACHE_DB_PATH=/data/kitchenmate.db
+    volumes:
+      - kitchenmate-data:/data
     restart: unless-stopped
+
+volumes:
+  kitchenmate-data:

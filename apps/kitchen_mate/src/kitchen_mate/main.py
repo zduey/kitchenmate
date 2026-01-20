@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from kitchen_mate.config import get_settings
-from kitchen_mate.db import init_db
+from kitchen_mate.database import close_database, init_database
 from kitchen_mate.routes import auth, clip, convert, me
 
 
@@ -24,13 +24,18 @@ _startup_settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """Initialize resources on startup."""
+    """Initialize resources on startup and cleanup on shutdown."""
     # Get settings at startup (allows dependency injection override for tests)
     settings = get_settings()
 
     if settings.cache_enabled:
-        init_db(settings.cache_db_path)
+        await init_database(settings.cache_db_path)
+
     yield
+
+    # Cleanup on shutdown
+    if settings.cache_enabled:
+        await close_database()
 
 
 app = FastAPI(

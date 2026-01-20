@@ -10,7 +10,13 @@ services:
     branch: main
     healthCheckPath: /health
     autoDeploy: false  # Deploy via GitHub Actions after CI passes
+    disk:
+      name: kitchenmate-data
+      mountPath: /data
+      sizeGB: 1
     envVars:
+      - key: CACHE_DB_PATH
+        value: /data/kitchenmate.db
       - key: ANTHROPIC_API_KEY
         sync: false  # Set manually in Render dashboard (secret)
       - key: LLM_ALLOWED_IPS

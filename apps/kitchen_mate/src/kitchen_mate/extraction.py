@@ -13,7 +13,7 @@ from recipe_clipper.models import Recipe
 from recipe_clipper.parsers.recipe_scrapers_parser import parse_with_recipe_scrapers
 
 from kitchen_mate.config import is_ip_allowed
-from kitchen_mate.db import get_cached_recipe, hash_content
+from kitchen_mate.database import get_cached_recipe, hash_content
 from kitchen_mate.schemas import Parser
 
 
@@ -125,7 +125,7 @@ async def extract_recipe(
     # Check if content changed (for force_refresh scenarios)
     content_changed = None
     if check_content_changed:
-        cached = get_cached_recipe(url)
+        cached = await get_cached_recipe(url)
         if cached and cached.content_hash == content_hash:
             return cached.recipe, Parser(cached.parsing_method), content_hash, False
         content_changed = True

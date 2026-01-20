@@ -65,5 +65,5 @@ RUN uv sync --frozen --no-dev
 ENV PORT=8000
 EXPOSE $PORT
 
-# Run the application (shell form to expand $PORT)
-CMD uv run uvicorn kitchen_mate.main:app --host 0.0.0.0 --port $PORT
+# Run migrations and start the application (shell form to expand $PORT)
+CMD uv run alembic upgrade head && uv run uvicorn kitchen_mate.main:app --host 0.0.0.0 --port $PORT
