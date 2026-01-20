@@ -18,7 +18,7 @@ export function UserDropdown({ user, onSignOut }: UserDropdownProps) {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+        className="flex items-center gap-2 px-3 py-2 text-sm text-brown-medium hover:bg-gray-100 rounded-lg transition-colors"
       >
         <span>{user.email}</span>
         <svg
@@ -45,7 +45,7 @@ export function UserDropdown({ user, onSignOut }: UserDropdownProps) {
           <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
             <button
               onClick={handleSignOut}
-              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              className="w-full text-left px-4 py-2 text-sm text-brown-medium hover:bg-gray-100"
             >
               Sign Out
             </button>

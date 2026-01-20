@@ -26,7 +26,7 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
       )}
 
       <div className="p-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">{recipe.title}</h2>
+        <h2 className="text-2xl font-bold text-brown-dark mb-2">{recipe.title}</h2>
 
         {recipe.source_url && (
           <div className="mb-4">
@@ -34,7 +34,7 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
               href={recipe.source_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 hover:underline"
+              className="inline-flex items-center text-sm text-coral hover:text-coral-dark hover:underline"
               title={recipe.source_url}
             >
               <span className="truncate max-w-md">{recipe.source_url}</span>
@@ -56,7 +56,7 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
         )}
 
         {recipe.metadata && (
-          <div className="flex flex-wrap gap-4 mb-6 text-sm text-gray-600">
+          <div className="flex flex-wrap gap-4 mb-6 text-sm text-brown-medium">
             {recipe.metadata.author && (
               <span className="flex items-center">
                 <svg
@@ -142,7 +142,7 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
             {recipe.metadata.categories.map((category, index) => (
               <span
                 key={index}
-                className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full"
+                className="px-2 py-1 bg-gray-100 text-brown-medium text-xs rounded-full"
               >
                 {category}
               </span>
@@ -151,13 +151,13 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
         )}
 
         <div className="mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">
+          <h3 className="text-lg font-semibold text-brown-dark mb-3">
             Ingredients
           </h3>
           <ul className="space-y-2">
             {recipe.ingredients.map((ingredient, index) => (
               <li key={index} className="flex items-start">
-                <span className="text-blue-600 mr-2">•</span>
+                <span className="text-coral mr-2">•</span>
                 <span>{ingredient.display_text || ingredient.name}</span>
               </li>
             ))}
@@ -165,16 +165,16 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
         </div>
 
         <div className="mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">
+          <h3 className="text-lg font-semibold text-brown-dark mb-3">
             Instructions
           </h3>
           <ol className="space-y-3">
             {recipe.instructions.map((instruction, index) => (
               <li key={index} className="flex">
-                <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white text-sm rounded-full flex items-center justify-center mr-3 mt-0.5">
+                <span className="flex-shrink-0 w-6 h-6 bg-coral text-white text-sm rounded-full flex items-center justify-center mr-3 mt-0.5">
                   {index + 1}
                 </span>
-                <span className="text-gray-700">{instruction}</span>
+                <span className="text-brown-medium">{instruction}</span>
               </li>
             ))}
           </ol>

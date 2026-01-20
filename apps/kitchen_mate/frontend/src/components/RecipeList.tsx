@@ -78,7 +78,7 @@ export function RecipeList() {
         <p className="text-red-600 mb-4">{error}</p>
         <button
           onClick={handleRetry}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className="px-4 py-2 bg-coral text-white rounded-lg hover:bg-coral-dark"
         >
           Try Again
         </button>
@@ -104,15 +104,15 @@ export function RecipeList() {
             />
           </svg>
         </div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">
+        <h3 className="text-lg font-medium text-brown-dark mb-2">
           No recipes yet
         </h3>
-        <p className="text-gray-600 mb-6">
+        <p className="text-brown-medium mb-6">
           Start building your collection by adding a recipe.
         </p>
         <Link
-          to="/add"
-          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          to="/clip"
+          className="inline-flex items-center px-4 py-2 bg-coral text-white rounded-lg hover:bg-coral-dark"
         >
           <svg
             className="h-5 w-5 mr-2"
@@ -148,7 +148,7 @@ export function RecipeList() {
           <button
             onClick={handleLoadMore}
             disabled={loadingMore}
-            className="px-6 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-2 bg-white border border-gray-300 text-brown-medium rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loadingMore ? "Loading..." : "Load More"}
           </button>

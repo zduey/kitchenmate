@@ -41,7 +41,7 @@ export function RecipeForm({ onSubmit, isLoading }: RecipeFormProps) {
         value={url}
         onChange={(e) => setUrl(e.target.value)}
         placeholder="Enter recipe URL..."
-        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-coral focus:border-transparent"
         disabled={isLoading}
         required
       />
@@ -50,7 +50,7 @@ export function RecipeForm({ onSubmit, isLoading }: RecipeFormProps) {
           <button
             type="submit"
             disabled={isLoading || !url.trim()}
-            className="px-6 py-2 bg-blue-600 text-white font-medium rounded-l-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-6 py-2 bg-coral text-white font-medium rounded-l-lg hover:bg-coral-dark focus:outline-none focus:ring-2 focus:ring-coral focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {isLoading ? "Clipping..." : "Clip"}
           </button>
@@ -58,7 +58,7 @@ export function RecipeForm({ onSubmit, isLoading }: RecipeFormProps) {
             type="button"
             disabled={isLoading}
             onClick={() => setDropdownOpen(!dropdownOpen)}
-            className="px-2 py-2 bg-blue-600 text-white font-medium rounded-r-lg border-l border-blue-500 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-2 py-2 bg-coral text-white font-medium rounded-r-lg border-l border-coral-dark hover:bg-coral-dark focus:outline-none focus:ring-2 focus:ring-coral focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             aria-label="More clip options"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

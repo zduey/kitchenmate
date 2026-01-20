@@ -37,7 +37,7 @@ export function AuthForm() {
       <div className="text-center">
         <div className="mb-4 text-4xl">📧</div>
         <h2 className="text-2xl font-bold mb-4">Check your email</h2>
-        <p className="text-gray-600 mb-6">
+        <p className="text-brown-medium mb-6">
           We've sent a magic link to <strong>{email}</strong>
         </p>
         <p className="text-sm text-gray-500 mb-6">
@@ -45,7 +45,7 @@ export function AuthForm() {
         </p>
         <button
           onClick={() => setStep("input")}
-          className="text-sm text-blue-600 hover:underline"
+          className="text-sm text-coral hover:underline"
         >
           Use a different email
         </button>
@@ -60,7 +60,7 @@ export function AuthForm() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-brown-medium mb-1">
             Email address
           </label>
           <input
@@ -68,7 +68,7 @@ export function AuthForm() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-coral"
             required
             disabled={loading}
           />
@@ -79,7 +79,7 @@ export function AuthForm() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="w-full px-6 py-2 bg-coral text-white font-medium rounded-lg hover:bg-coral-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {loading ? "Sending..." : "Send magic link"}
         </button>
