@@ -190,7 +190,11 @@ def test_get_recipe_not_found_single_tenant(client_with_db: TestClient) -> None:
 def test_update_recipe_single_tenant(client_with_db: TestClient, sample_recipe: Recipe) -> None:
     """Test updating a recipe."""
     # Store and save recipe
-    asyncio.run(store_recipe("https://example.com/cake", sample_recipe, "abc123hash", Parser.recipe_scrapers))
+    asyncio.run(
+        store_recipe(
+            "https://example.com/cake", sample_recipe, "abc123hash", Parser.recipe_scrapers
+        )
+    )
     response = client_with_db.post(
         "/api/me/recipes",
         json={"url": "https://example.com/cake"},
@@ -223,7 +227,11 @@ def test_update_recipe_data_sets_modified(
 ) -> None:
     """Test that updating recipe data sets is_modified flag."""
     # Store and save recipe
-    asyncio.run(store_recipe("https://example.com/cake", sample_recipe, "abc123hash", Parser.recipe_scrapers))
+    asyncio.run(
+        store_recipe(
+            "https://example.com/cake", sample_recipe, "abc123hash", Parser.recipe_scrapers
+        )
+    )
     response = client_with_db.post(
         "/api/me/recipes",
         json={"url": "https://example.com/cake"},
@@ -248,7 +256,11 @@ def test_update_recipe_data_sets_modified(
 def test_delete_recipe_single_tenant(client_with_db: TestClient, sample_recipe: Recipe) -> None:
     """Test deleting (soft delete) a recipe."""
     # Store and save recipe
-    asyncio.run(store_recipe("https://example.com/cake", sample_recipe, "abc123hash", Parser.recipe_scrapers))
+    asyncio.run(
+        store_recipe(
+            "https://example.com/cake", sample_recipe, "abc123hash", Parser.recipe_scrapers
+        )
+    )
     response = client_with_db.post(
         "/api/me/recipes",
         json={"url": "https://example.com/cake"},
@@ -277,7 +289,11 @@ def test_delete_recipe_not_found(client_with_db: TestClient) -> None:
 def test_save_recipe_already_saved(client_with_db: TestClient, sample_recipe: Recipe) -> None:
     """Test saving a recipe that's already saved returns existing."""
     # Store and save recipe
-    asyncio.run(store_recipe("https://example.com/cake", sample_recipe, "abc123hash", Parser.recipe_scrapers))
+    asyncio.run(
+        store_recipe(
+            "https://example.com/cake", sample_recipe, "abc123hash", Parser.recipe_scrapers
+        )
+    )
     response = client_with_db.post(
         "/api/me/recipes",
         json={"url": "https://example.com/cake"},
@@ -298,7 +314,11 @@ def test_save_recipe_already_saved(client_with_db: TestClient, sample_recipe: Re
 def test_save_recipe_restores_deleted(client_with_db: TestClient, sample_recipe: Recipe) -> None:
     """Test saving a deleted recipe restores it."""
     # Store, save, and delete recipe
-    asyncio.run(store_recipe("https://example.com/cake", sample_recipe, "abc123hash", Parser.recipe_scrapers))
+    asyncio.run(
+        store_recipe(
+            "https://example.com/cake", sample_recipe, "abc123hash", Parser.recipe_scrapers
+        )
+    )
     response = client_with_db.post(
         "/api/me/recipes",
         json={"url": "https://example.com/cake"},
@@ -392,7 +412,11 @@ def test_users_have_separate_collections_multi_tenant(
     client, jwt_secret = client_with_db_multi_tenant
 
     # Store recipe
-    asyncio.run(store_recipe("https://example.com/cake", sample_recipe, "abc123hash", Parser.recipe_scrapers))
+    asyncio.run(
+        store_recipe(
+            "https://example.com/cake", sample_recipe, "abc123hash", Parser.recipe_scrapers
+        )
+    )
 
     # User 1 saves recipe
     token1 = create_test_jwt("user-1", "user1@example.com", jwt_secret)
@@ -434,7 +458,11 @@ def test_user_cannot_access_other_user_recipe_multi_tenant(
     client, jwt_secret = client_with_db_multi_tenant
 
     # Store recipe
-    asyncio.run(store_recipe("https://example.com/cake", sample_recipe, "abc123hash", Parser.recipe_scrapers))
+    asyncio.run(
+        store_recipe(
+            "https://example.com/cake", sample_recipe, "abc123hash", Parser.recipe_scrapers
+        )
+    )
 
     # User 1 saves recipe
     token1 = create_test_jwt("user-1", "user1@example.com", jwt_secret)
@@ -479,7 +507,11 @@ def test_list_recipes_pagination(client_with_db: TestClient, sample_recipe: Reci
     # Create 5 recipes
     for i in range(5):
         recipe = sample_recipe.model_copy(update={"title": f"Recipe {i}"})
-        asyncio.run(store_recipe(f"https://example.com/recipe{i}", recipe, f"hash{i}", Parser.recipe_scrapers))
+        asyncio.run(
+            store_recipe(
+                f"https://example.com/recipe{i}", recipe, f"hash{i}", Parser.recipe_scrapers
+            )
+        )
         client_with_db.post("/api/me/recipes", json={"url": f"https://example.com/recipe{i}"})
 
     # Get first page (limit 2)
@@ -508,8 +540,12 @@ def test_list_recipes_pagination(client_with_db: TestClient, sample_recipe: Reci
 def test_list_recipes_filter_by_modified(client_with_db: TestClient, sample_recipe: Recipe) -> None:
     """Test filtering recipes by modified status."""
     # Create 2 recipes
-    asyncio.run(store_recipe("https://example.com/recipe1", sample_recipe, "hash1", Parser.recipe_scrapers))
-    asyncio.run(store_recipe("https://example.com/recipe2", sample_recipe, "hash2", Parser.recipe_scrapers))
+    asyncio.run(
+        store_recipe("https://example.com/recipe1", sample_recipe, "hash1", Parser.recipe_scrapers)
+    )
+    asyncio.run(
+        store_recipe("https://example.com/recipe2", sample_recipe, "hash2", Parser.recipe_scrapers)
+    )
 
     response = client_with_db.post("/api/me/recipes", json={"url": "https://example.com/recipe1"})
     id1 = response.json()["user_recipe_id"]
