@@ -60,15 +60,17 @@ async def clip_recipe(
         return ClipResponse(recipe=recipe, cached=False, content_changed=content_changed)
 
     except RecipeNotFoundError as error:
-        raise HTTPException(status_code=404, detail=str(error)) from error
+        raise HTTPException(
+            status_code=404, detail="No recipe found at the requested url"
+        ) from error
     except NetworkError as error:
-        raise HTTPException(status_code=502, detail=f"Failed to fetch URL: {error}") from error
+        raise HTTPException(status_code=502, detail="Failed to fetch URL") from error
     except LLMNotAllowedError as error:
-        raise HTTPException(status_code=403, detail=str(error)) from error
+        raise HTTPException(status_code=403, detail="This reciple site not supported") from error
     except (RecipeParsingError, LLMError) as error:
-        raise HTTPException(status_code=500, detail=f"Failed to parse recipe: {error}") from error
+        raise HTTPException(status_code=500, detail="Failed to parse recipe") from error
     except RecipeClipperError as error:
-        raise HTTPException(status_code=500, detail=str(error)) from error
+        raise HTTPException(status_code=500, detail="Failed to parse recipe") from error
 
 
 async def _get_from_cache(url: str, force_llm: bool):
