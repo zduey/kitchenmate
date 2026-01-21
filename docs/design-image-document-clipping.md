@@ -9,6 +9,73 @@ This feature extends Kitchen Mate's recipe extraction capabilities to support up
 
 This is a **user-gated feature** requiring authentication in multi-tenant mode, while remaining available in single-tenant deployments.
 
+**Key capabilities**:
+- Upload images or documents to extract recipes
+- Persist uploaded files for re-parsing with improved models
+- Download original uploaded files
+- Re-extract recipes when parsing improvements are made
+
+## Design Decisions
+
+Based on requirements, this design implements:
+
+### 1. Header Dropdown Navigation ✅
+
+**Selected Approach**: Replace "Clip Recipe" with "Add Recipe" dropdown containing:
+- **"From Web"**: URL-based recipe clipping (public access)
+- **"From Upload"**: File upload (user-gated, grayed out until authenticated)
+
+**Benefits**:
+- Keeps header navigation clean
+- Clear visual indication of auth requirement
+- Maintains "My Recipes" tab structure
+- Extensible for future input methods
+
+### 2. File Persistence ✅
+
+**Selected Approach**: Permanently store uploaded files in Supabase Storage
+
+**Storage Strategy**:
+- Primary: Supabase Storage (multi-tenant deployments)
+- Fallback: Local filesystem (`./uploads/`) for single-tenant mode
+- Structure: `{user_id}/{recipe_id}/original.{ext}`
+
+**Database**: New `recipe_uploads` table with file metadata
+
+**Enables**:
+- Re-parsing with improved models
+- Original file downloads
+- Historical source tracking
+
+### 3. User Gating ✅
+
+**Selected Approach**: Upload feature requires authentication
+
+**Implementation**:
+- Backend: Use `get_user()` dependency (returns `DEFAULT_USER` in single-tenant)
+- Frontend: Use `useRequireAuth()` hook to check authorization
+- UI: "From Upload" option grayed out with lock icon when not signed in
+- Behavior: Clicking when unauthorized shows sign-in modal
+
+### 4. Re-parsing Functionality ✅
+
+**Selected Approach**: Allow users to re-extract recipes from stored files
+
+**Endpoint**: `POST /me/recipes/{id}/reparse`
+
+**Use cases**:
+- Model improvements (Claude upgrades)
+- Parsing error corrections
+- Better extraction accuracy over time
+
+### 5. File Download ✅
+
+**Selected Approach**: Users can download their original uploaded files
+
+**Endpoint**: `GET /me/recipes/{id}/download`
+
+**Implementation**: `StreamingResponse` with proper content-type and filename
+
 ## Existing Infrastructure
 
 The library package already includes the necessary parsing functions:
@@ -153,16 +220,57 @@ def compute_file_hash(file_path: Path) -> str:
 
 #### 2. API Schemas
 
-Add new request/response schemas to `apps/kitchen_mate/src/kitchen_mate/schemas.py`:
+Update existing schemas in `apps/kitchen_mate/src/kitchen_mate/schemas.py`:
 
 ```python
-class ClipUploadResponse(BaseModel):
-    """Response body for the /clip/upload endpoint."""
+# Update GetUserRecipeResponse to include upload information
+class GetUserRecipeResponse(BaseModel):
+    """Response body for getting a specific user recipe."""
 
-    recipe: Recipe = Field(description="The extracted recipe")
-    source_type: str = Field(description="Type of source: 'image' or 'document'")
+    id: str
+    source_url: str
+    parsing_method: str
+    is_modified: bool
+    notes: str | None
+    tags: list[str] | None
+    recipe: Recipe
+    lineage: RecipeLineage
+    created_at: str
+    updated_at: str
+
+    # Upload information (null if not from upload)
+    upload_info: UploadInfo | None = Field(
+        default=None,
+        description="File upload metadata if recipe was created from upload",
+    )
+
+
+class UploadInfo(BaseModel):
+    """File upload metadata for recipes created from uploads."""
+
+    file_type: str = Field(description="Type of file: 'image' or 'document'")
     original_filename: str = Field(description="Original uploaded filename")
-    file_hash: str = Field(description="SHA-256 hash of uploaded file")
+    file_size_bytes: int = Field(description="File size in bytes")
+    storage_url: str = Field(description="URL to download original file")
+    can_reparse: bool = Field(description="Whether recipe can be re-parsed")
+
+
+# Update UserRecipeSummaryResponse to indicate upload source
+class UserRecipeSummaryResponse(BaseModel):
+    """Summary of a user's recipe for list views."""
+
+    id: str
+    source_url: str
+    title: str
+    image_url: str | None
+    is_modified: bool
+    tags: list[str] | None
+    created_at: str
+    updated_at: str
+    is_from_upload: bool = Field(
+        default=False,
+        description="Whether this recipe was created from a file upload",
+    )
 ```
 
 #### 3. Upload Route
@@ -199,17 +307,26 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.post("/clip/upload")
-async def clip_from_upload(
+@router.post("/me/recipes/upload", status_code=201)
+async def upload_and_save_recipe(
     file: Annotated[UploadFile, File(description="Recipe image or document")],
     user: Annotated[User, Depends(get_user)],
     settings: Annotated[Settings, Depends(get_settings)],
-) -> ClipUploadResponse:
-    """Extract a recipe from an uploaded image or document.
+) -> SaveRecipeResponse:
+    """Extract recipe from uploaded file and save to user's collection.
 
     This is a user-gated endpoint:
     - Single-tenant: Available to all (uses DEFAULT_USER)
     - Multi-tenant: Requires authentication
+
+    Workflow:
+    1. Validate and save file to temp location
+    2. Extract recipe using Claude API
+    3. Generate recipe_id
+    4. Upload file to permanent storage (Supabase or local)
+    5. Save recipe to database (recipes + user_recipes tables)
+    6. Save upload metadata (recipe_uploads table)
+    7. Return saved recipe info
 
     Supported formats:
     - Images: jpg, png, gif, webp
@@ -223,16 +340,12 @@ async def clip_from_upload(
 
     temp_file = None
     try:
-        # Validate and save upload
+        # 1. Validate and save upload to temp
         temp_file = await save_upload_to_temp(file)
-
-        # Determine file type
-        _, file_type = validate_file_extension(file.filename or "")
-
-        # Compute file hash for deduplication
+        ext, file_type = validate_file_extension(file.filename or "")
         file_hash = compute_file_hash(temp_file)
 
-        # Parse based on type
+        # 2. Parse recipe based on file type
         if file_type == "image":
             recipe = parse_recipe_from_image(
                 temp_file,
@@ -244,18 +357,66 @@ async def clip_from_upload(
                 api_key=settings.anthropic_api_key,
             )
 
+        # 3. Generate recipe ID
+        recipe_id = str(uuid.uuid4())
+
+        # 4. Upload file to permanent storage
+        storage_path, storage_url = await upload_recipe_file(
+            user_id=user.id,
+            recipe_id=recipe_id,
+            file_path=temp_file,
+            original_filename=file.filename or "unknown",
+            supabase_url=settings.supabase_storage_url,
+            supabase_key=settings.supabase_service_role_key,
+            bucket=settings.recipe_uploads_bucket,
+        )
+
+        # 5. Save to recipes table (use "upload" as source_url)
+        source_url = f"upload://{user.id}/{recipe_id}"
+        cached = await store_recipe(
+            source_url=source_url,
+            recipe=recipe,
+            content_hash=file_hash,
+            parsing_method=f"llm_{file_type}",
+        )
+
+        # 6. Save to user_recipes table
+        user_recipe, is_new = await save_user_recipe(
+            user_id=user.id,
+            recipe_id=cached.id,
+            recipe_data=recipe,
+            tags=None,
+            notes=None,
+        )
+
+        # 7. Save upload metadata
+        await save_recipe_upload(
+            recipe_id=cached.id,
+            user_id=user.id,
+            file_type=file_type,
+            file_extension=ext,
+            original_filename=file.filename or "unknown",
+            file_size_bytes=temp_file.stat().st_size,
+            storage_path=storage_path,
+            storage_url=storage_url,
+            file_hash=file_hash,
+            mime_type=get_mime_type(ext),
+        )
+
         logger.info(
-            "Extracted recipe from %s for user %s: %s",
+            "Uploaded and saved recipe from %s for user %s: %s",
             file_type,
             user.id,
             recipe.title,
         )
 
-        return ClipUploadResponse(
-            recipe=recipe,
-            source_type=file_type,
-            original_filename=file.filename or "unknown",
-            file_hash=file_hash,
+        return SaveRecipeResponse(
+            user_recipe_id=user_recipe.id,
+            recipe_id=cached.id,
+            source_url=source_url,
+            parsing_method=f"llm_{file_type}",
+            created_at=user_recipe.created_at.isoformat(),
+            is_new=is_new,
         )
 
     except ValueError as error:
@@ -285,122 +446,143 @@ app.include_router(upload.router, tags=["clip"])
 
 #### 1. API Client
 
-Add to `apps/kitchen_mate/frontend/src/api/clip.ts`:
+Add to `apps/kitchen_mate/frontend/src/api/recipes.ts`:
 
 ```typescript
-export interface ClipUploadResponse {
-  recipe: Recipe;
-  source_type: "image" | "document";
-  original_filename: string;
-  file_hash: string;
+export interface SaveRecipeResponse {
+  user_recipe_id: string;
+  recipe_id: string;
+  source_url: string;
+  parsing_method: string;
+  created_at: string;
+  is_new: boolean;
 }
 
-export async function clipRecipeFromUpload(
+export interface UploadInfo {
+  file_type: "image" | "document";
+  original_filename: string;
+  file_size_bytes: number;
+  storage_url: string;
+  can_reparse: boolean;
+}
+
+export async function uploadRecipe(
   file: File,
   onProgress?: (progress: number) => void
-): Promise<ClipUploadResponse> {
+): Promise<SaveRecipeResponse> {
   const formData = new FormData();
   formData.append("file", file);
 
-  const response = await fetch("/api/clip/upload", {
+  const xhr = new XMLHttpRequest();
+
+  return new Promise((resolve, reject) => {
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable && onProgress) {
+        onProgress((e.loaded / e.total) * 100);
+      }
+    });
+
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(JSON.parse(xhr.responseText));
+      } else {
+        const error = JSON.parse(xhr.responseText);
+        reject(new Error(error.detail || "Failed to upload recipe"));
+      }
+    });
+
+    xhr.addEventListener("error", () => {
+      reject(new Error("Network error during upload"));
+    });
+
+    xhr.open("POST", "/api/me/recipes/upload");
+    xhr.withCredentials = true; // Include auth cookies
+    xhr.send(formData);
+  });
+}
+
+export async function reparseRecipe(recipeId: string): Promise<GetUserRecipeResponse> {
+  const response = await fetch(`/api/me/recipes/${recipeId}/reparse`, {
     method: "POST",
-    body: formData,
-    credentials: "include", // Include auth cookies
+    credentials: "include",
   });
 
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.detail || "Failed to clip recipe from upload");
+    throw new Error(error.detail || "Failed to reparse recipe");
   }
 
   return response.json();
 }
 ```
 
-#### 2. UI Component Options
+#### 2. UI Design: Header Dropdown Navigation
 
-Three design options for the upload interface:
+**Selected Approach**: Dropdown menu in header navigation
 
-##### **Option A: Unified Input with Tab Switcher** (Recommended)
-
-Replace the current single URL input with a tabbed interface:
+Update the header navigation to replace "Clip Recipe" with "Add Recipe" dropdown:
 
 ```
-┌─────────────────────────────────────────────────┐
-│  [ URL ]  [ Upload ]                           │
-├─────────────────────────────────────────────────┤
-│                                                 │
-│  [  Drag & drop or click to upload  ]          │
-│                                                 │
-│  Supports: Images (JPG, PNG) & PDFs            │
-└─────────────────────────────────────────────────┘
+Header:
+┌────────────────────────────────────────────────────────────┐
+│  🔖 Recipleased   [Add Recipe ▼]  [My Recipes]  [Sign In] │
+└────────────────────────────────────────────────────────────┘
+
+When "Add Recipe" is clicked:
+┌────────────────────┐
+│  From Web          │  ← URL-based clipping (public)
+│  From Upload       │  ← File upload (requires auth, grayed if not signed in)
+└────────────────────┘
 ```
 
-**Pros**:
-- Clear separation between URL and upload workflows
-- Familiar pattern (tabs)
-- Doesn't clutter the main interface
-- Easy to add more input types later
+**Navigation Flow**:
 
-**Cons**:
-- Requires switching tabs
-- Takes slightly more clicks for first-time users
+1. **Unauthenticated users**:
+   - "Add Recipe" dropdown shows both options
+   - "From Web" is enabled (navigates to URL input page)
+   - "From Upload" is **grayed out** with tooltip: "Sign in to upload recipes"
+   - Clicking "From Upload" shows sign-in modal
 
-##### **Option B: Combined Input with Auto-Detection**
+2. **Authenticated users**:
+   - Both "From Web" and "From Upload" are enabled
+   - "From Upload" navigates to file upload interface
+   - Both routes save to user's collection
 
-Single input that accepts both URLs and files:
+**Header Component Changes** (`Header.tsx`):
 
-```
-┌─────────────────────────────────────────────────┐
-│  Enter URL or drag & drop file                 │
-│  ┌───────────────────────────────────────┐     │
-│  │ https://example.com/recipe  [📎]      │     │
-│  └───────────────────────────────────────┘     │
-│                                    [ Clip ▼ ]  │
-└─────────────────────────────────────────────────┘
-```
+Replace the single "Clip Recipe" link with a dropdown menu component:
 
-Clicking the paperclip icon opens file picker. Drag-and-drop anywhere on the input.
+```typescript
+<DropdownMenu>
+  <DropdownMenu.Trigger>
+    Add Recipe <ChevronDownIcon />
+  </DropdownMenu.Trigger>
 
-**Pros**:
-- Minimal UI changes
-- Single point of entry
-- Drag-and-drop convenience
+  <DropdownMenu.Content>
+    <DropdownMenu.Item asChild>
+      <Link to="/clip">From Web</Link>
+    </DropdownMenu.Item>
 
-**Cons**:
-- Less discoverable for upload feature
-- Could be confusing to mix two input types
-- Validation complexity (URL vs file)
-
-##### **Option C: Separate Upload Section Below**
-
-Keep URL input as-is, add upload section below:
-
-```
-┌─────────────────────────────────────────────────┐
-│  Enter recipe URL                              │
-│  ┌───────────────────────────────────────┐     │
-│  │ https://example.com/recipe            │     │
-│  └───────────────────────────────────────┘     │
-│                                    [ Clip ▼ ]  │
-├─────────────────────────────────────────────────┤
-│                    OR                           │
-├─────────────────────────────────────────────────┤
-│  Upload recipe image or PDF                    │
-│  ┌───────────────────────────────────────┐     │
-│  │  Drag & drop or click to browse       │     │
-│  └───────────────────────────────────────┘     │
-└─────────────────────────────────────────────────┘
+    <DropdownMenu.Item
+      disabled={!isAuthorized}
+      onClick={() => !isAuthorized && setShowSignInModal(true)}
+    >
+      <Link to="/upload" className={!isAuthorized ? "text-gray-400" : ""}>
+        From Upload
+      </Link>
+      {!isAuthorized && <LockIcon className="ml-2 h-4 w-4" />}
+    </DropdownMenu.Item>
+  </DropdownMenu.Content>
+</DropdownMenu>
 ```
 
-**Pros**:
-- Both options always visible
-- Very clear and discoverable
-- No mode switching
-
-**Cons**:
-- Takes more vertical space
-- Can feel cluttered on mobile
+**Benefits of this approach**:
+- ✅ Keeps header clean and organized
+- ✅ Clear visual feedback (grayed out) when auth is required
+- ✅ Maintains existing "My Recipes" tab structure
+- ✅ Easily extensible for future add methods (e.g., "From Scan", "Import Cookbook")
+- ✅ Familiar dropdown pattern
+- ✅ Preserves mobile responsiveness
 
 #### 3. File Upload Component
 
@@ -454,20 +636,325 @@ function UploadSection() {
 
 ## Implementation Considerations
 
-### 1. File Storage
+### 1. File Storage & Persistence
 
-**Temporary Storage Strategy**:
-- Files are saved to temp directory during processing
-- Cleaned up immediately after extraction (in `finally` block)
-- Not persisted to permanent storage
-- Uses Python's `tempfile.NamedTemporaryFile` with `delete=False` for explicit control
+**Persistent Storage Strategy** (Supabase Storage):
 
-**Alternative (Future Enhancement)**:
-- Store original files in user's collection for re-extraction
-- Use cloud storage (S3, Supabase Storage) for persistence
-- Enable "re-process with improved model" workflows
+Uploaded files are **permanently stored** alongside user recipes to enable:
+- Re-parsing with improved models
+- Downloading original files
+- Historical tracking of recipe sources
 
-### 2. Rate Limiting
+**Storage Architecture**:
+
+```
+Supabase Storage Bucket: recipe-uploads
+├── {user_id}/
+│   ├── {recipe_id}/
+│   │   ├── original.{ext}      # Original uploaded file
+│   │   └── metadata.json       # Upload metadata
+```
+
+**Storage Flow**:
+1. User uploads file → Validate and save to temp directory
+2. Extract recipe using Claude API → Get `Recipe` object
+3. Upload file to Supabase Storage → Get permanent URL
+4. Save to database:
+   - `recipes` table: recipe data, parsing method
+   - `user_recipes` table: user's copy, tags, notes
+   - `recipe_uploads` table: file metadata, storage path
+
+**Database Schema Changes**:
+
+Add new table `recipe_uploads`:
+
+```sql
+CREATE TABLE recipe_uploads (
+  id TEXT PRIMARY KEY,
+  recipe_id TEXT NOT NULL REFERENCES recipes(id),
+  user_id TEXT NOT NULL,
+  file_type TEXT NOT NULL CHECK (file_type IN ('image', 'document')),
+  file_extension TEXT NOT NULL,
+  original_filename TEXT NOT NULL,
+  file_size_bytes INTEGER NOT NULL,
+  storage_path TEXT NOT NULL,
+  storage_url TEXT NOT NULL,
+  file_hash TEXT NOT NULL,
+  mime_type TEXT NOT NULL,
+  created_at TIMESTAMP NOT NULL,
+  UNIQUE(recipe_id)
+);
+
+CREATE INDEX idx_recipe_uploads_recipe_id ON recipe_uploads(recipe_id);
+CREATE INDEX idx_recipe_uploads_user_id ON recipe_uploads(user_id);
+CREATE INDEX idx_recipe_uploads_file_hash ON recipe_uploads(file_hash);
+```
+
+**Configuration**:
+
+Add to `config.py`:
+
+```python
+class Settings(BaseSettings):
+    # ... existing fields ...
+
+    # Supabase Storage (for file uploads)
+    supabase_storage_url: str | None = None
+    supabase_service_role_key: str | None = None  # For backend storage operations
+    recipe_uploads_bucket: str = "recipe-uploads"
+```
+
+**File Upload Module** (`storage.py`):
+
+```python
+"""Supabase Storage integration for uploaded recipes."""
+
+from pathlib import Path
+from supabase import create_client, Client
+
+async def upload_recipe_file(
+    user_id: str,
+    recipe_id: str,
+    file_path: Path,
+    original_filename: str,
+    supabase_url: str,
+    supabase_key: str,
+    bucket: str,
+) -> tuple[str, str]:
+    """Upload file to Supabase Storage.
+
+    Args:
+        user_id: User ID
+        recipe_id: Recipe ID
+        file_path: Local file path
+        original_filename: Original filename
+        supabase_url: Supabase project URL
+        supabase_key: Service role key
+        bucket: Storage bucket name
+
+    Returns:
+        Tuple of (storage_path, storage_url)
+    """
+    client: Client = create_client(supabase_url, supabase_key)
+
+    # Generate storage path
+    ext = Path(original_filename).suffix
+    storage_path = f"{user_id}/{recipe_id}/original{ext}"
+
+    # Upload file
+    with open(file_path, "rb") as f:
+        client.storage.from_(bucket).upload(
+            storage_path,
+            f,
+            file_options={"content-type": get_mime_type(ext)}
+        )
+
+    # Get public URL
+    storage_url = client.storage.from_(bucket).get_public_url(storage_path)
+
+    return storage_path, storage_url
+
+
+async def download_recipe_file(
+    storage_path: str,
+    supabase_url: str,
+    supabase_key: str,
+    bucket: str,
+) -> bytes:
+    """Download file from Supabase Storage.
+
+    Args:
+        storage_path: Path in storage bucket
+        supabase_url: Supabase project URL
+        supabase_key: Service role key
+        bucket: Storage bucket name
+
+    Returns:
+        File content as bytes
+    """
+    client: Client = create_client(supabase_url, supabase_key)
+    return client.storage.from_(bucket).download(storage_path)
+
+
+async def delete_recipe_file(
+    storage_path: str,
+    supabase_url: str,
+    supabase_key: str,
+    bucket: str,
+) -> None:
+    """Delete file from Supabase Storage.
+
+    Args:
+        storage_path: Path in storage bucket
+        supabase_url: Supabase project URL
+        supabase_key: Service role key
+        bucket: Storage bucket name
+    """
+    client: Client = create_client(supabase_url, supabase_key)
+    client.storage.from_(bucket).remove([storage_path])
+```
+
+**Fallback for Single-Tenant Mode**:
+
+When Supabase Storage is not configured, store files locally:
+
+```python
+# In config.py
+local_uploads_dir: Path = Path("./uploads")
+
+# In storage.py - check if supabase_storage_url is set
+if not settings.supabase_storage_url:
+    # Use local filesystem storage
+    storage_path = settings.local_uploads_dir / user_id / recipe_id / f"original{ext}"
+    storage_url = f"/api/uploads/{user_id}/{recipe_id}/original{ext}"
+```
+
+### 2. Re-Parsing Functionality
+
+Allow users to re-extract recipes from stored files when improvements are made to the parsing models.
+
+**API Endpoint**: `POST /me/recipes/{id}/reparse`
+
+```python
+@router.post("/me/recipes/{id}/reparse")
+async def reparse_recipe(
+    id: str,
+    user: Annotated[User, Depends(get_user)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> GetUserRecipeResponse:
+    """Re-extract recipe from original uploaded file.
+
+    Only works for recipes that were created from uploads.
+    Returns updated recipe data.
+    """
+    # Get user recipe
+    user_recipe = await get_user_recipe(id, user.id)
+
+    # Get upload record
+    upload = await get_recipe_upload(user_recipe.recipe_id)
+    if not upload:
+        raise HTTPException(
+            status_code=400,
+            detail="Recipe was not created from an upload",
+        )
+
+    # Download file from storage
+    file_content = await download_recipe_file(
+        upload.storage_path,
+        settings.supabase_storage_url,
+        settings.supabase_service_role_key,
+        settings.recipe_uploads_bucket,
+    )
+
+    # Save to temp file
+    temp_file = Path(tempfile.mktemp(suffix=upload.file_extension))
+    temp_file.write_bytes(file_content)
+
+    try:
+        # Re-parse based on file type
+        if upload.file_type == "image":
+            recipe = parse_recipe_from_image(
+                temp_file,
+                api_key=settings.anthropic_api_key,
+            )
+        else:
+            recipe = parse_recipe_from_document(
+                temp_file,
+                api_key=settings.anthropic_api_key,
+            )
+
+        # Update user recipe with new data
+        await update_user_recipe(
+            user_recipe_id=id,
+            user_id=user.id,
+            recipe=recipe,
+        )
+
+        return await get_user_recipe_with_lineage(id, user.id)
+
+    finally:
+        temp_file.unlink()
+```
+
+**Frontend Integration**:
+
+Add "Re-parse" button to recipe view for uploaded recipes:
+
+```typescript
+// In SavedRecipeView.tsx
+{recipe.source_type === "upload" && (
+  <button
+    onClick={handleReparse}
+    className="text-sm text-coral hover:underline"
+  >
+    🔄 Re-parse with latest model
+  </button>
+)}
+```
+
+### 3. File Download Endpoint
+
+Allow users to download their original uploaded files.
+
+**API Endpoint**: `GET /me/recipes/{id}/download`
+
+```python
+@router.get("/me/recipes/{id}/download")
+async def download_recipe_file_endpoint(
+    id: str,
+    user: Annotated[User, Depends(get_user)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> StreamingResponse:
+    """Download the original uploaded file for a recipe.
+
+    Returns the file as a downloadable attachment.
+    """
+    # Get user recipe
+    user_recipe = await get_user_recipe(id, user.id)
+
+    # Get upload record
+    upload = await get_recipe_upload(user_recipe.recipe_id)
+    if not upload:
+        raise HTTPException(
+            status_code=404,
+            detail="No uploaded file found for this recipe",
+        )
+
+    # Download file from storage
+    file_content = await download_recipe_file(
+        upload.storage_path,
+        settings.supabase_storage_url,
+        settings.supabase_service_role_key,
+        settings.recipe_uploads_bucket,
+    )
+
+    # Return as streaming response
+    return StreamingResponse(
+        BytesIO(file_content),
+        media_type=upload.mime_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{upload.original_filename}"'
+        },
+    )
+```
+
+**Frontend Integration**:
+
+Add download link to recipe view:
+
+```typescript
+{recipe.has_upload && (
+  <a
+    href={`/api/me/recipes/${recipe.id}/download`}
+    download
+    className="text-sm text-coral hover:underline"
+  >
+    📥 Download original file
+  </a>
+)}
+```
+
+### 4. Rate Limiting
 
 Uploaded files use Claude API for every request (no cache like URL-based clipping):
 
@@ -566,55 +1053,197 @@ tests/fixtures/
 
 ## Implementation Steps
 
-1. **Backend Foundation**:
-   - [ ] Create `files.py` module with upload handling
-   - [ ] Add upload schemas to `schemas.py`
-   - [ ] Create `routes/upload.py` with `/clip/upload` endpoint
+### Phase 1: Database & Storage Setup
+
+1. **Database Schema**:
+   - [ ] Create migration for `recipe_uploads` table
+   - [ ] Add SQLAlchemy model `RecipeUploadModel` in `database/models.py`
+   - [ ] Add repository functions in `database/repositories.py`:
+     - `save_recipe_upload()`
+     - `get_recipe_upload()`
+     - `delete_recipe_upload()`
+
+2. **Storage Integration**:
+   - [ ] Add Supabase Storage config to `config.py`
+   - [ ] Create `storage.py` module with:
+     - `upload_recipe_file()`
+     - `download_recipe_file()`
+     - `delete_recipe_file()`
+   - [ ] Implement local filesystem fallback for single-tenant mode
+   - [ ] Set up Supabase Storage bucket (in Supabase dashboard)
+
+3. **Configuration**:
+   - [ ] Add `SUPABASE_STORAGE_URL` to `.env.example`
+   - [ ] Add `SUPABASE_SERVICE_ROLE_KEY` to `.env.example`
+   - [ ] Update README with storage configuration instructions
+
+### Phase 2: Backend File Upload
+
+4. **File Handling**:
+   - [ ] Create `files.py` module with:
+     - `validate_file_extension()`
+     - `validate_file_size()`
+     - `save_upload_to_temp()`
+     - `compute_file_hash()`
    - [ ] Write unit tests for file validation
 
-2. **Frontend - API Integration**:
-   - [ ] Add upload function to API client
-   - [ ] Create `FileUpload.tsx` component
-   - [ ] Add auth gating with `useRequireAuth`
+5. **Upload Endpoint**:
+   - [ ] Add upload schemas to `schemas.py`:
+     - `ClipUploadResponse`
+     - Update `GetUserRecipeResponse` to include upload info
+   - [ ] Create `routes/upload.py` with `POST /clip/upload`
+   - [ ] Integrate with storage module
+   - [ ] Add auth gating with `get_user` dependency
+   - [ ] Write integration tests with test fixtures
 
-3. **Frontend - UI Integration** (choose option):
-   - [ ] **Option A**: Add tab switcher to `RecipeForm.tsx`
-   - [ ] **Option B**: Add upload icon to existing input
-   - [ ] **Option C**: Add separate upload section
+6. **Re-parsing Endpoint**:
+   - [ ] Add `POST /me/recipes/{id}/reparse` to `routes/me.py`
+   - [ ] Add repository function `get_recipe_upload_by_recipe_id()`
+   - [ ] Write tests for re-parsing logic
 
-4. **Enhancement & Polish**:
-   - [ ] Add rate limiting middleware
-   - [ ] Implement usage tracking
-   - [ ] Add file preview for images
-   - [ ] Add progress indicators
-   - [ ] Write integration tests
-   - [ ] Add magic byte validation
-   - [ ] Document in README
+7. **Download Endpoint**:
+   - [ ] Add `GET /me/recipes/{id}/download` to `routes/me.py`
+   - [ ] Implement StreamingResponse for file downloads
+   - [ ] Test with various file types
 
-5. **Production Hardening**:
-   - [ ] Add virus scanning
-   - [ ] Set up monitoring/alerting for API costs
-   - [ ] Add usage dashboard
-   - [ ] Load testing with large files
+### Phase 3: Frontend - Header Navigation
+
+8. **Dropdown Component**:
+   - [ ] Install/create dropdown menu component (or use headlessui)
+   - [ ] Update `Header.tsx`:
+     - Replace "Clip Recipe" link with dropdown
+     - Add "Add Recipe" dropdown trigger
+     - Add "From Web" and "From Upload" menu items
+     - Disable "From Upload" when not authorized
+   - [ ] Add lock icon for disabled state
+   - [ ] Add tooltip for disabled upload option
+
+9. **Routing**:
+   - [ ] Create `/upload` route in `App.tsx`
+   - [ ] Keep existing `/clip` route for URL-based clipping
+
+### Phase 4: Frontend - Upload UI
+
+10. **File Upload Component**:
+    - [ ] Create `FileUpload.tsx`:
+      - Drag-and-drop zone
+      - File picker button
+      - File type validation
+      - File size validation
+      - Image preview
+      - Upload progress
+    - [ ] Add auth integration with `useRequireAuth`
+    - [ ] Show sign-in modal if not authorized
+
+11. **Upload Page**:
+    - [ ] Create `UploadRecipePage.tsx`
+    - [ ] Integrate `FileUpload` component
+    - [ ] Handle upload response
+    - [ ] Show extracted recipe
+    - [ ] Add save to collection flow
+
+12. **API Client**:
+    - [ ] Add `clipRecipeFromUpload()` to `api/clip.ts`
+    - [ ] Add `reparseRecipe()` function
+    - [ ] Handle progress callbacks
+
+### Phase 5: Recipe View Enhancements
+
+13. **Upload Indicators**:
+    - [ ] Update `SavedRecipeView.tsx`:
+      - Show upload source badge for uploaded recipes
+      - Add "Re-parse" button (if from upload)
+      - Add "Download original" link (if from upload)
+    - [ ] Update `UserRecipeSummaryResponse` to include upload flag
+
+14. **Recipe List**:
+    - [ ] Add upload indicator icon to recipe cards
+    - [ ] Filter by source type (web vs upload)
+
+### Phase 6: Enhancement & Polish
+
+15. **Rate Limiting**:
+    - [ ] Add rate limiting middleware for upload endpoint
+    - [ ] Track uploads per user
+    - [ ] Return 429 when limit exceeded
+
+16. **Error Handling**:
+    - [ ] Client-side validation errors
+    - [ ] Server-side extraction errors
+    - [ ] Storage errors (quota exceeded, etc.)
+    - [ ] Graceful degradation when storage unavailable
+
+17. **Testing**:
+    - [ ] Add test fixtures (sample images, PDFs)
+    - [ ] Integration tests for upload flow
+    - [ ] Test re-parsing
+    - [ ] Test file downloads
+    - [ ] Test auth gating
+
+18. **Documentation**:
+    - [ ] Update README with upload feature
+    - [ ] Add Supabase Storage setup guide
+    - [ ] Document rate limits
+    - [ ] Add troubleshooting section
+
+### Phase 7: Production Hardening
+
+19. **Security**:
+    - [ ] Add magic byte validation
+    - [ ] Integrate virus scanning (optional)
+    - [ ] Add file upload audit logging
+    - [ ] Test with malicious files
+
+20. **Monitoring**:
+    - [ ] Track API costs for vision/document calls
+    - [ ] Set up alerts for high usage
+    - [ ] Add usage dashboard for admins
+
+21. **Performance**:
+    - [ ] Load testing with large files
+    - [ ] Optimize storage upload/download
+    - [ ] Add caching for download endpoints
 
 ## Open Questions
 
-1. **Should we cache extracted recipes from uploads?**
-   - Pro: Avoid re-processing same cookbook pages
-   - Con: Need to store file hashes, complex invalidation
-   - Recommendation: Start without caching, add if users request
+1. **File deduplication across users?**
+   - **Question**: If two users upload the same cookbook photo, should we dedupe?
+   - **Consideration**: File hash matching could save storage costs
+   - **Privacy**: Need to ensure no cross-user data leakage
+   - **Recommendation**: Start with per-user storage, add deduplication later if needed
 
 2. **Should we support batch upload initially?**
-   - Recommendation: No, add later based on user feedback
+   - **Recommendation**: No, add in Phase 8 based on user feedback
+   - **Reason**: Single upload flow is simpler to implement and test
 
-3. **What's the max PDF page count?**
-   - Recommendation: 10 pages max initially (prevents abuse)
+3. **PDF page limits?**
+   - **Question**: What's the max PDF page count to prevent abuse?
+   - **Recommendation**: 10 pages max initially (prevents abuse, most recipes are 1-2 pages)
+   - **Future**: Allow more pages for premium users
 
-4. **Should uploads auto-save to user's recipe collection?**
-   - Recommendation: No, keep upload and save as separate actions (consistency with URL flow)
+4. **Storage quota per user?**
+   - **Question**: Should we limit total storage per user?
+   - **Recommendation**:
+     - Free tier: 100 uploads or 500MB total
+     - Premium: Unlimited uploads or 5GB total
+   - **Implementation**: Track in `recipe_uploads` table
 
-5. **Which UI option should we implement?**
-   - **Recommendation: Option A (Tab Switcher)** - balances discoverability, clarity, and extensibility
+5. **Re-parsing notifications?**
+   - **Question**: Should we notify users when better parsing models are available?
+   - **Recommendation**: Add "Model update available" badge on uploaded recipes
+   - **Future**: Batch re-parse all uploaded recipes when model improves
+
+6. **Original file retention policy?**
+   - **Question**: Keep files forever or delete after some time?
+   - **Recommendation**:
+     - Keep files while recipe exists in user's collection
+     - Delete file when user deletes recipe (with 30-day grace period)
+     - Add "Delete original file" option to save storage
+
+7. **Local storage for single-tenant mode?**
+   - **Question**: Where to store files when Supabase Storage isn't configured?
+   - **Recommendation**: `./uploads/` directory with same structure
+   - **Consideration**: Document backup strategies for local deployments
 
 ## Success Metrics
 
