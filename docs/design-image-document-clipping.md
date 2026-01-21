@@ -1204,6 +1204,159 @@ tests/fixtures/
     - [ ] Optimize storage upload/download
     - [ ] Add caching for download endpoints
 
+## MVP: Upload → Preview → Save (Revised)
+
+### Overview
+
+The MVP supports all file types but **does not persist uploaded files**. Files are processed in-memory, extracted recipes are returned for user review, and only saved to the database when the user explicitly saves.
+
+This matches the existing URL-based flow: **Clip → Review → Save**
+
+### MVP Scope
+
+**Included**:
+- All supported file types (jpg, png, gif, webp, pdf, docx, txt, md)
+- Magic byte validation for security
+- Recipe extraction via Claude API
+- Preview extracted recipe before saving
+- User can modify recipe before saving
+- Save to existing `recipes` + `user_recipes` tables
+
+**Excluded (Future Phases)**:
+- File persistence / storage infrastructure
+- Re-parsing functionality
+- Original file downloads
+- Supabase Storage integration
+
+### MVP Data Flow
+
+```
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐     ┌──────────┐
+│   Upload    │────▶│   Extract    │────▶│   Preview   │────▶│   Save   │
+│   File      │     │   Recipe     │     │   & Edit    │     │  (POST)  │
+└─────────────┘     └──────────────┘     └─────────────┘     └──────────┘
+     │                    │                    │                   │
+     ▼                    ▼                    ▼                   ▼
+  Validate           Claude API          Frontend only       Database
+  (magic bytes)      (no storage)        (user reviews)      (recipes +
+                                                              user_recipes)
+```
+
+### MVP API Design
+
+#### `POST /api/clip/upload` — Extract Recipe from File (No Persistence)
+
+Extract a recipe from an uploaded file. Returns the extracted recipe for preview. **Does not save anything to database.**
+
+**Request**: `multipart/form-data` with `file` field
+
+**Response** (200 OK):
+```json
+{
+  "recipe": {
+    "title": "Chocolate Cake",
+    "ingredients": [...],
+    "instructions": [...],
+    ...
+  },
+  "file_info": {
+    "filename": "cookbook_page.jpg",
+    "file_type": "image",
+    "file_size_bytes": 1234567,
+    "content_type": "image/jpeg"
+  },
+  "parsing_method": "llm_image"
+}
+```
+
+**Error Responses**:
+- `400`: Invalid file format, size exceeded, or content mismatch
+- `401`: Authentication required (multi-tenant mode)
+- `503`: Anthropic API key not configured
+- `422`: Failed to extract recipe from file
+
+#### `POST /api/me/recipes` — Save Recipe (Updated)
+
+The existing save endpoint is updated to accept recipe data directly for uploads:
+
+```json
+{
+  "recipe": { ... },           // Extracted (and possibly modified) recipe
+  "source_type": "upload",     // New field to indicate source
+  "source_filename": "cookbook_page.jpg",
+  "parsing_method": "llm_image",
+  "tags": ["dessert"],
+  "notes": "From grandma's cookbook"
+}
+```
+
+### MVP Implementation Checklist
+
+#### Phase 1: Backend
+
+- [ ] Create `files.py` with magic byte validation
+  - [ ] `detect_file_type()` - magic byte detection
+  - [ ] `validate_file_size()` - size limits
+  - [ ] `process_upload()` - combined validation
+  - [ ] Unit tests for all file types + edge cases
+
+- [ ] Add upload endpoint to `routes/clip.py`
+  - [ ] `POST /api/clip/upload` - extract only, no persistence
+  - [ ] Proper async wrapping for sync parsers
+  - [ ] Temp file cleanup in finally block
+
+- [ ] Update `schemas.py`
+  - [ ] `FileInfo` - upload metadata
+  - [ ] `ClipUploadResponse` - extraction response
+  - [ ] Update `SaveRecipeRequest` for upload source
+
+- [ ] Update `routes/me.py`
+  - [ ] Handle `source_type: "upload"` in save endpoint
+  - [ ] Generate `upload://` source URL from recipe hash
+
+- [ ] Tests
+  - [ ] Test file validation (valid + invalid files)
+  - [ ] Test upload endpoint with mock files
+  - [ ] Test save flow for uploaded recipes
+
+#### Phase 2: Frontend
+
+- [ ] Header dropdown navigation
+  - [ ] "Add Recipe" dropdown with "From Web" / "From Upload"
+  - [ ] Auth gating for upload option
+
+- [ ] Upload page (`/upload`)
+  - [ ] File drop zone component
+  - [ ] Client-side validation (type + size)
+  - [ ] Loading state during extraction
+  - [ ] Error handling
+
+- [ ] Recipe preview/edit component
+  - [ ] Display extracted recipe
+  - [ ] Inline editing for all fields
+  - [ ] Tags and notes input
+  - [ ] Cancel / Save buttons
+
+- [ ] API client
+  - [ ] `uploadAndExtractRecipe(file)` → preview
+  - [ ] Update `saveRecipe()` for upload source
+
+### Future Phases (Post-MVP)
+
+**Phase 3: File Persistence**
+- Supabase Storage integration
+- `recipe_uploads` table
+- Re-parsing functionality
+- Original file downloads
+
+**Phase 4: Enhanced Features**
+- Batch upload (multiple files)
+- PDF page selection
+- Image cropping before extraction
+- Rate limiting
+
+---
+
 ## Open Questions
 
 1. **File deduplication across users?**
