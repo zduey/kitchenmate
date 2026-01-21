@@ -66,7 +66,10 @@ async def clip_recipe(
     except NetworkError as error:
         raise HTTPException(status_code=502, detail="Failed to fetch URL") from error
     except LLMNotAllowedError as error:
-        raise HTTPException(status_code=403, detail="This reciple site not supported") from error
+        raise HTTPException(
+            status_code=403,
+            detail="This reciple site requires advanced parsing. Upgrade to a paid account to parse this recipe.",
+        ) from error
     except (RecipeParsingError, LLMError) as error:
         raise HTTPException(status_code=500, detail="Failed to parse recipe") from error
     except RecipeClipperError as error:
