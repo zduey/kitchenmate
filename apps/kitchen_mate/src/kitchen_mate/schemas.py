@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from enum import Enum
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, model_validator
 from recipe_clipper.models import Recipe
 
 
@@ -13,6 +13,8 @@ class Parser(str, Enum):
 
     recipe_scrapers = "recipe_scrapers"
     llm = "llm"
+    llm_image = "llm_image"
+    llm_document = "llm_document"
 
 
 class OutputFormat(str, Enum):
@@ -58,6 +60,23 @@ class ClipResponse(BaseModel):
     )
 
 
+class FileInfo(BaseModel):
+    """Information about an uploaded file."""
+
+    filename: str = Field(description="Original filename")
+    file_type: str = Field(description="Type: 'image' or 'document'")
+    file_size_bytes: int = Field(description="File size in bytes")
+    content_type: str = Field(description="MIME type")
+
+
+class ClipUploadResponse(BaseModel):
+    """Response body for extracting a recipe from an uploaded file."""
+
+    recipe: Recipe = Field(description="The extracted recipe")
+    file_info: FileInfo = Field(description="Upload file metadata")
+    parsing_method: str = Field(description="Method used: 'llm_image' or 'llm_document'")
+
+
 class ConvertRequest(BaseModel):
     """Request body for the /convert endpoint."""
 
@@ -76,15 +95,52 @@ class ErrorResponse(BaseModel):
 # =============================================================================
 
 
-class SaveRecipeRequest(BaseModel):
-    """Request body for saving a recipe to user's collection."""
+class SourceType(str, Enum):
+    """Source type for saved recipes."""
 
-    url: HttpUrl = Field(description="URL of the recipe page to save")
+    web = "web"
+    upload = "upload"
+
+
+class SaveRecipeRequest(BaseModel):
+    """Request body for saving a recipe to user's collection.
+
+    Supports two source types:
+    - web: Provide URL, recipe will be fetched/parsed
+    - upload: Provide recipe data directly (from /clip/upload preview)
+    """
+
+    # Web source fields
+    url: HttpUrl | None = Field(
+        default=None,
+        description="URL of the recipe page to save (required for web source)",
+    )
     timeout: int = Field(default=10, ge=1, le=60, description="HTTP timeout in seconds")
     use_llm_fallback: bool = Field(
         default=True,
         description="Enable LLM fallback for unsupported sites",
     )
+
+    # Upload source fields
+    source_type: SourceType = Field(
+        default=SourceType.web,
+        description="Source type: 'web' or 'upload'",
+    )
+    recipe: Recipe | None = Field(
+        default=None,
+        description="Recipe data (required for upload source)",
+    )
+    source_filename: str | None = Field(
+        default=None,
+        max_length=255,
+        description="Original filename (for upload source)",
+    )
+    parsing_method: str | None = Field(
+        default=None,
+        description="Parsing method used (for upload source)",
+    )
+
+    # Common fields
     tags: list[str] | None = Field(
         default=None,
         max_length=20,
@@ -95,6 +151,17 @@ class SaveRecipeRequest(BaseModel):
         max_length=2000,
         description="Optional personal notes (max 2000 chars)",
     )
+
+    @model_validator(mode="after")
+    def validate_source(self) -> "SaveRecipeRequest":
+        """Validate that required fields are present based on source type."""
+        if self.source_type == SourceType.web:
+            if not self.url:
+                raise ValueError("URL is required for web source")
+        elif self.source_type == SourceType.upload:
+            if not self.recipe:
+                raise ValueError("Recipe data is required for upload source")
+        return self
 
 
 class SaveRecipeResponse(BaseModel):

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -29,9 +30,11 @@ from kitchen_mate.extraction import LLMNotAllowedError, extract_recipe, get_clie
 from kitchen_mate.schemas import (
     GetUserRecipeResponse,
     ListUserRecipesResponse,
+    Parser,
     RecipeLineage,
     SaveRecipeRequest,
     SaveRecipeResponse,
+    SourceType,
     UpdateUserRecipeRequest,
     UpdateUserRecipeResponse,
     UserRecipeSummaryResponse,
@@ -48,11 +51,89 @@ async def save_recipe(
     user: Annotated[User, Depends(get_user)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> SaveRecipeResponse:
-    """Save a recipe from a URL to the current user's collection.
+    """Save a recipe to the current user's collection.
 
-    If the recipe has already been parsed, it will be reused.
+    Supports two source types:
+    - web: Provide URL, recipe will be fetched/parsed (or reused from cache)
+    - upload: Provide recipe data directly (from /clip/upload preview)
+
+    If the recipe has already been parsed/saved, it will be reused.
     If the user has already saved this recipe, the existing entry is returned.
     """
+    if save_request.source_type == SourceType.upload:
+        return await _save_uploaded_recipe(save_request, user)
+    else:
+        return await _save_web_recipe(save_request, request, user, settings)
+
+
+async def _save_uploaded_recipe(
+    save_request: SaveRecipeRequest,
+    user: User,
+) -> SaveRecipeResponse:
+    """Save a recipe from upload (already extracted via /clip/upload)."""
+    # Generate source identifier from recipe content hash
+    recipe_json = save_request.recipe.model_dump_json()
+    recipe_hash = hashlib.sha256(recipe_json.encode()).hexdigest()[:16]
+    source_url = f"upload://{recipe_hash}"
+
+    # Determine parsing method
+    parsing_method = save_request.parsing_method or Parser.llm_image.value
+
+    # Check if this exact recipe was already saved (by hash)
+    cached = await get_cached_recipe(source_url)
+
+    if cached:
+        # Recipe already exists - just save to user's collection
+        user_recipe, is_new = await save_user_recipe(
+            user_id=user.id,
+            recipe_id=cached.id,
+            recipe_data=cached.recipe,
+            tags=save_request.tags,
+            notes=save_request.notes,
+        )
+        return SaveRecipeResponse(
+            user_recipe_id=user_recipe.id,
+            recipe_id=cached.id,
+            source_url=cached.source_url,
+            parsing_method=cached.parsing_method,
+            created_at=user_recipe.created_at.isoformat(),
+            is_new=is_new,
+        )
+
+    # Store the recipe
+    cached = await store_recipe(
+        source_url=source_url,
+        recipe=save_request.recipe,
+        content_hash=recipe_hash,
+        parsing_method=Parser(parsing_method),
+    )
+
+    # Save to user's collection
+    user_recipe, is_new = await save_user_recipe(
+        user_id=user.id,
+        recipe_id=cached.id,
+        recipe_data=save_request.recipe,
+        tags=save_request.tags,
+        notes=save_request.notes,
+    )
+
+    return SaveRecipeResponse(
+        user_recipe_id=user_recipe.id,
+        recipe_id=cached.id,
+        source_url=source_url,
+        parsing_method=parsing_method,
+        created_at=user_recipe.created_at.isoformat(),
+        is_new=is_new,
+    )
+
+
+async def _save_web_recipe(
+    save_request: SaveRecipeRequest,
+    request: Request,
+    user: User,
+    settings: Settings,
+) -> SaveRecipeResponse:
+    """Save a recipe from a web URL."""
     url = str(save_request.url)
     client_ip = get_client_ip(request)
 
