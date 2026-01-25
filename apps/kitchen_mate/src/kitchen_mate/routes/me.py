@@ -60,24 +60,26 @@ async def save_recipe(
     If the recipe has already been parsed/saved, it will be reused.
     If the user has already saved this recipe, the existing entry is returned.
     """
-    if save_request.source_type == SourceType.upload:
-        return await _save_uploaded_recipe(save_request, user)
+    if save_request.source_type in (SourceType.upload, SourceType.manual):
+        return await _save_direct_recipe(save_request, user)
     else:
         return await _save_web_recipe(save_request, request, user, settings)
 
 
-async def _save_uploaded_recipe(
+async def _save_direct_recipe(
     save_request: SaveRecipeRequest,
     user: User,
 ) -> SaveRecipeResponse:
-    """Save a recipe from upload (already extracted via /clip/upload)."""
+    """Save a recipe from upload or manual entry."""
     # Generate source identifier from recipe content hash
     recipe_json = save_request.recipe.model_dump_json()
     recipe_hash = hashlib.sha256(recipe_json.encode()).hexdigest()[:16]
-    source_url = f"upload://{recipe_hash}"
+    source_prefix = save_request.source_type.value
+    source_url = f"{source_prefix}://{recipe_hash}"
 
     # Determine parsing method
-    parsing_method = save_request.parsing_method or Parser.llm_image.value
+    default_method = "manual" if save_request.source_type == SourceType.manual else Parser.llm_image.value
+    parsing_method = save_request.parsing_method or default_method
 
     # Check if this exact recipe was already saved (by hash)
     cached = await get_cached_recipe(source_url)
@@ -102,10 +104,10 @@ async def _save_uploaded_recipe(
 
     # Store the recipe
     cached = await store_recipe(
-        source_url=source_url,
+        url=source_url,
         recipe=save_request.recipe,
         content_hash=recipe_hash,
-        parsing_method=Parser(parsing_method),
+        parsed_with=Parser(parsing_method),
     )
 
     # Save to user's collection

@@ -15,6 +15,7 @@ class Parser(str, Enum):
     llm = "llm"
     llm_image = "llm_image"
     llm_document = "llm_document"
+    manual = "manual"
 
 
 class OutputFormat(str, Enum):
@@ -100,6 +101,7 @@ class SourceType(str, Enum):
 
     web = "web"
     upload = "upload"
+    manual = "manual"
 
 
 class SaveRecipeRequest(BaseModel):
@@ -158,9 +160,9 @@ class SaveRecipeRequest(BaseModel):
         if self.source_type == SourceType.web:
             if not self.url:
                 raise ValueError("URL is required for web source")
-        elif self.source_type == SourceType.upload:
+        elif self.source_type in (SourceType.upload, SourceType.manual):
             if not self.recipe:
-                raise ValueError("Recipe data is required for upload source")
+                raise ValueError("Recipe data is required for upload/manual source")
         return self
 
 

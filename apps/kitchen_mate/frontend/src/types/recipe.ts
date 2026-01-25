@@ -40,6 +40,19 @@ export interface ClipResponse {
   content_changed: boolean | null;
 }
 
+export interface FileInfo {
+  filename: string;
+  file_type: "image" | "document";
+  file_size_bytes: number;
+  content_type: string;
+}
+
+export interface ClipUploadResponse {
+  recipe: Recipe;
+  file_info: FileInfo;
+  parsing_method: string;
+}
+
 export interface ConvertRequest {
   recipe: Recipe;
   format: Exclude<OutputFormat, "json">;
@@ -53,8 +66,13 @@ export interface ApiError {
 // User Recipe Types
 // =============================================================================
 
+export type SourceType = "web" | "upload" | "manual";
+
 export interface SaveRecipeRequest {
-  url: string;
+  source_type?: SourceType;
+  url?: string;
+  recipe?: Recipe;
+  parsing_method?: string;
   timeout?: number;
   use_llm_fallback?: boolean;
   tags?: string[];

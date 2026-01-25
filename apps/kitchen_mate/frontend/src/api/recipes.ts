@@ -1,6 +1,7 @@
 import {
   ApiError,
   ListUserRecipesResponse,
+  Recipe,
   SaveRecipeRequest,
   SaveRecipeResponse,
   UpdateUserRecipeRequest,
@@ -80,19 +81,37 @@ export async function getUserRecipe(recipeId: string): Promise<UserRecipe> {
   return response.json();
 }
 
+export type SaveRecipeParams =
+  | { url: string; tags?: string[]; notes?: string }
+  | { sourceType: "upload"; recipe: Recipe; parsingMethod: string; tags?: string[]; notes?: string }
+  | { sourceType: "manual"; recipe: Recipe; parsingMethod: "manual"; tags?: string[]; notes?: string };
+
 /**
- * Save a recipe from URL to user's collection.
+ * Save a recipe to user's collection.
+ * Supports both URL-based and upload-based saving.
  */
-export async function saveRecipe(
-  url: string,
-  options: { tags?: string[]; notes?: string } = {}
-): Promise<SaveRecipeResponse> {
-  const request: SaveRecipeRequest = {
-    url,
-    use_llm_fallback: true,
-    tags: options.tags,
-    notes: options.notes,
-  };
+export async function saveRecipe(params: SaveRecipeParams): Promise<SaveRecipeResponse> {
+  let request: SaveRecipeRequest;
+
+  if ("url" in params) {
+    // URL-based save
+    request = {
+      source_type: "web",
+      url: params.url,
+      use_llm_fallback: true,
+      tags: params.tags,
+      notes: params.notes,
+    };
+  } else {
+    // Upload or manual save
+    request = {
+      source_type: params.sourceType,
+      recipe: params.recipe,
+      parsing_method: params.parsingMethod,
+      tags: params.tags,
+      notes: params.notes,
+    };
+  }
 
   const response = await fetch(`${API_BASE}/me/recipes`, {
     method: "POST",

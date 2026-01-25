@@ -1,100 +1,66 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Recipe } from "../types/recipe";
-import { clipRecipe, uploadRecipe, ClipError } from "../api/clip";
+import { uploadRecipe, ClipError } from "../api/clip";
 import { saveRecipe, RecipeError } from "../api/recipes";
-import { RecipeForm } from "./RecipeForm";
+import { FileDropZone } from "./FileDropZone";
 import { RecipeCard } from "./RecipeCard";
 import { LoadingSpinner } from "./LoadingSpinner";
 import { ErrorMessage } from "./ErrorMessage";
 import { useRequireAuth } from "../hooks/useRequireAuth";
 
-type RecipeSource =
-  | { type: "url"; url: string; forceLlm: boolean }
-  | { type: "upload"; filename: string; parsingMethod: string };
-
-type ClipState =
+type PageState =
   | { status: "idle" }
-  | { status: "loading"; source: RecipeSource }
-  | { status: "success"; source: RecipeSource; recipe: Recipe }
-  | { status: "saving"; source: RecipeSource; recipe: Recipe }
-  | { status: "saved"; source: RecipeSource; recipe: Recipe; recipeId: string }
-  | { status: "error"; source: RecipeSource; message: string };
+  | { status: "extracting"; filename: string }
+  | { status: "extracted"; filename: string; recipe: Recipe; parsingMethod: string }
+  | { status: "saving"; filename: string; recipe: Recipe; parsingMethod: string }
+  | { status: "saved"; filename: string; recipe: Recipe; recipeId: string }
+  | { status: "error"; filename: string; message: string };
 
-export function ClipRecipePage() {
-  const [state, setState] = useState<ClipState>({ status: "idle" });
+export function AddFromUploadPage() {
+  const [state, setState] = useState<PageState>({ status: "idle" });
   const { isAuthorized } = useRequireAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (url: string, forceLlm: boolean) => {
-    const source: RecipeSource = { type: "url", url, forceLlm };
-    setState({ status: "loading", source });
-
-    try {
-      const recipe = await clipRecipe(url, forceLlm);
-      setState({ status: "success", source, recipe });
-    } catch (error) {
-      const message =
-        error instanceof ClipError
-          ? error.message
-          : "An unexpected error occurred";
-      setState({ status: "error", source, message });
-    }
-  };
-
-  const handleUpload = async (file: File) => {
-    const source: RecipeSource = {
-      type: "upload",
-      filename: file.name,
-      parsingMethod: "",
-    };
-    setState({ status: "loading", source });
+  const handleFileSelect = async (file: File) => {
+    setState({ status: "extracting", filename: file.name });
 
     try {
       const result = await uploadRecipe(file);
-      const finalSource: RecipeSource = {
-        type: "upload",
+      setState({
+        status: "extracted",
         filename: file.name,
+        recipe: result.recipe,
         parsingMethod: result.parsing_method,
-      };
-      setState({ status: "success", source: finalSource, recipe: result.recipe });
+      });
     } catch (error) {
       const message =
         error instanceof ClipError
           ? error.message
-          : "An unexpected error occurred";
-      setState({ status: "error", source, message });
-    }
-  };
-
-  const handleRetry = () => {
-    if (state.status === "error") {
-      if (state.source.type === "url") {
-        handleSubmit(state.source.url, state.source.forceLlm);
-      }
-      // For uploads, user needs to re-select the file
+          : "Failed to extract recipe from file";
+      setState({ status: "error", filename: file.name, message });
     }
   };
 
   const handleSave = async () => {
-    if (state.status !== "success") return;
+    if (state.status !== "extracted") return;
 
-    setState({ status: "saving", source: state.source, recipe: state.recipe });
+    setState({
+      status: "saving",
+      filename: state.filename,
+      recipe: state.recipe,
+      parsingMethod: state.parsingMethod,
+    });
 
     try {
-      let result;
-      if (state.source.type === "url") {
-        result = await saveRecipe({ url: state.source.url });
-      } else {
-        result = await saveRecipe({
-          sourceType: "upload",
-          recipe: state.recipe,
-          parsingMethod: state.source.parsingMethod,
-        });
-      }
+      const result = await saveRecipe({
+        sourceType: "upload",
+        recipe: state.recipe,
+        parsingMethod: state.parsingMethod,
+      });
       setState({
         status: "saved",
-        source: state.source,
+        filename: state.filename,
         recipe: state.recipe,
         recipeId: result.user_recipe_id,
       });
@@ -105,7 +71,7 @@ export function ClipRecipePage() {
           : "Failed to save recipe";
       setState({
         status: "error",
-        source: state.source,
+        filename: state.filename,
         message,
       });
     }
@@ -117,60 +83,50 @@ export function ClipRecipePage() {
     }
   };
 
-  const handleClipAnother = () => {
+  const handleAddAnother = () => {
     setState({ status: "idle" });
   };
 
-  const getLoadingMessage = () => {
-    if (state.status !== "loading") return "";
-    if (state.source.type === "upload") {
-      return `Extracting recipe from ${state.source.filename}...`;
-    }
-    return "Extracting recipe...";
-  };
-
-  const canRetry =
-    state.status === "error" && state.source.type === "url";
+  const isLoading = state.status === "extracting" || state.status === "saving";
 
   return (
     <div>
       <div className="mb-6">
         <h2 className="text-xl font-semibold text-brown-dark mb-2">
-          Clip a Recipe
+          Add Recipe from File
         </h2>
         <p className="text-brown-medium">
-          Paste a URL from any recipe website, or upload an image or document.
+          Upload an image or document containing a recipe.
         </p>
       </div>
 
-      <div className="mb-8">
-        <RecipeForm
-          onSubmit={handleSubmit}
-          onUpload={handleUpload}
-          isLoading={state.status === "loading" || state.status === "saving"}
-        />
-      </div>
+      {/* File Drop Zone - only show when idle or error */}
+      {(state.status === "idle" || state.status === "error") && (
+        <div className="mb-8">
+          <FileDropZone onFileSelect={handleFileSelect} isLoading={isLoading} />
+        </div>
+      )}
 
-      {state.status === "loading" && (
-        <LoadingSpinner message={getLoadingMessage()} />
+      {/* Loading States */}
+      {state.status === "extracting" && (
+        <LoadingSpinner message={`Extracting recipe from ${state.filename}...`} />
       )}
 
       {state.status === "saving" && (
         <LoadingSpinner message="Saving to your collection..." />
       )}
 
+      {/* Error State */}
       {state.status === "error" && (
-        <ErrorMessage
-          message={state.message}
-          onRetry={canRetry ? handleRetry : undefined}
-        />
+        <ErrorMessage message={state.message} />
       )}
 
-      {(state.status === "success" || state.status === "saved") && (
+      {/* Success States */}
+      {(state.status === "extracted" || state.status === "saved") && (
         <div>
           {/* Status message and actions */}
           <div className="mb-6 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
-            {state.status === "success" && (
+            {state.status === "extracted" && (
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <p className="text-brown-dark font-medium">Recipe extracted!</p>
@@ -190,10 +146,10 @@ export function ClipRecipePage() {
                     </button>
                   )}
                   <button
-                    onClick={handleClipAnother}
+                    onClick={handleAddAnother}
                     className="px-4 py-2 text-sm border border-gray-300 text-brown-medium rounded-lg hover:bg-gray-50"
                   >
-                    Clip Another
+                    Upload Another
                   </button>
                 </div>
               </div>
@@ -225,10 +181,10 @@ export function ClipRecipePage() {
                     View Recipe
                   </button>
                   <button
-                    onClick={handleClipAnother}
+                    onClick={handleAddAnother}
                     className="px-4 py-2 border border-gray-300 text-brown-medium rounded-lg hover:bg-gray-50"
                   >
-                    Add Another
+                    Upload Another
                   </button>
                 </div>
               </div>

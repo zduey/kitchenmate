@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { Recipe, Ingredient, UserRecipe } from "../types/recipe";
+import { Recipe, UserRecipe } from "../types/recipe";
 import {
   getUserRecipe,
   updateUserRecipe,
   deleteUserRecipe,
   RecipeError,
 } from "../api/recipes";
+import { RecipeEditor } from "./RecipeEditor";
 import { ExportDropdown } from "./ExportDropdown";
 import { LoadingSpinner } from "./LoadingSpinner";
 
@@ -26,7 +27,6 @@ export function SavedRecipeView() {
   const [editedRecipe, setEditedRecipe] = useState<Recipe | null>(null);
   const [editedNotes, setEditedNotes] = useState("");
   const [editedTags, setEditedTags] = useState<string[]>([]);
-  const [newTag, setNewTag] = useState("");
 
   useEffect(() => {
     if (!id) return;
@@ -95,60 +95,6 @@ export function SavedRecipeView() {
     setIsEditing(false);
   };
 
-  const handleAddTag = () => {
-    const tag = newTag.trim().toLowerCase();
-    if (tag && !editedTags.includes(tag)) {
-      setEditedTags([...editedTags, tag]);
-    }
-    setNewTag("");
-  };
-
-  const handleRemoveTag = (tagToRemove: string) => {
-    setEditedTags(editedTags.filter((t) => t !== tagToRemove));
-  };
-
-  const updateIngredient = (index: number, field: keyof Ingredient, value: string) => {
-    if (!editedRecipe) return;
-    const newIngredients = [...editedRecipe.ingredients];
-    newIngredients[index] = { ...newIngredients[index], [field]: value };
-    setEditedRecipe({ ...editedRecipe, ingredients: newIngredients });
-  };
-
-  const addIngredient = () => {
-    if (!editedRecipe) return;
-    setEditedRecipe({
-      ...editedRecipe,
-      ingredients: [...editedRecipe.ingredients, { name: "", display_text: "" }],
-    });
-  };
-
-  const removeIngredient = (index: number) => {
-    if (!editedRecipe) return;
-    const newIngredients = editedRecipe.ingredients.filter((_, i) => i !== index);
-    setEditedRecipe({ ...editedRecipe, ingredients: newIngredients });
-  };
-
-  const updateInstruction = (index: number, value: string) => {
-    if (!editedRecipe) return;
-    const newInstructions = [...editedRecipe.instructions];
-    newInstructions[index] = value;
-    setEditedRecipe({ ...editedRecipe, instructions: newInstructions });
-  };
-
-  const addInstruction = () => {
-    if (!editedRecipe) return;
-    setEditedRecipe({
-      ...editedRecipe,
-      instructions: [...editedRecipe.instructions, ""],
-    });
-  };
-
-  const removeInstruction = (index: number) => {
-    if (!editedRecipe) return;
-    const newInstructions = editedRecipe.instructions.filter((_, i) => i !== index);
-    setEditedRecipe({ ...editedRecipe, instructions: newInstructions });
-  };
-
   const formatTime = (minutes: number): string => {
     if (minutes < 60) return `${minutes} min`;
     const hours = Math.floor(minutes / 60);
@@ -192,8 +138,38 @@ export function SavedRecipeView() {
     );
   }
 
-  const recipe = isEditing ? editedRecipe : userRecipe.recipe;
+  const recipe = userRecipe.recipe;
 
+  // Edit mode - use RecipeEditor
+  if (isEditing) {
+    return (
+      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        {recipe.image && (
+          <img
+            src={recipe.image}
+            alt={recipe.title}
+            className="w-full h-64 object-cover"
+          />
+        )}
+        <div className="p-6">
+          <RecipeEditor
+            recipe={editedRecipe}
+            notes={editedNotes}
+            tags={editedTags}
+            onRecipeChange={setEditedRecipe}
+            onNotesChange={setEditedNotes}
+            onTagsChange={setEditedTags}
+            onSave={handleSave}
+            onCancel={handleCancelEdit}
+            isSaving={isSaving}
+            saveLabel="Save Changes"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // View mode
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden">
       {/* Image */}
@@ -209,72 +185,59 @@ export function SavedRecipeView() {
         {/* Header with title and actions */}
         <div className="flex justify-between items-start mb-4">
           <div className="flex-1">
-            {isEditing ? (
-              <input
-                type="text"
-                value={editedRecipe.title}
-                onChange={(e) =>
-                  setEditedRecipe({ ...editedRecipe, title: e.target.value })
-                }
-                className="text-2xl font-bold text-brown-dark w-full border border-gray-300 rounded px-2 py-1"
-              />
-            ) : (
-              <h2 className="text-2xl font-bold text-brown-dark">{recipe.title}</h2>
-            )}
+            <h2 className="text-2xl font-bold text-brown-dark">{recipe.title}</h2>
 
-            {userRecipe.is_modified && !isEditing && (
+            {userRecipe.is_modified && (
               <span className="inline-block mt-2 px-2 py-1 bg-coral bg-opacity-10 text-coral-dark text-xs rounded">
                 Modified from original
               </span>
             )}
           </div>
 
-          {!isEditing && (
-            <div className="flex gap-2 ml-4">
-              <button
-                onClick={() => setIsEditing(true)}
-                className="p-2 text-brown-medium hover:text-coral hover:bg-coral hover:bg-opacity-10 rounded"
-                title="Edit recipe"
+          <div className="flex gap-2 ml-4">
+            <button
+              onClick={() => setIsEditing(true)}
+              className="p-2 text-brown-medium hover:text-coral hover:bg-coral hover:bg-opacity-10 rounded"
+              title="Edit recipe"
+            >
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                <svg
-                  className="h-5 w-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                  />
-                </svg>
-              </button>
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                className="p-2 text-brown-medium hover:text-red-600 hover:bg-red-50 rounded"
-                title="Delete recipe"
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                />
+              </svg>
+            </button>
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="p-2 text-brown-medium hover:text-red-600 hover:bg-red-50 rounded"
+              title="Delete recipe"
+            >
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                <svg
-                  className="h-5 w-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  />
-                </svg>
-              </button>
-            </div>
-          )}
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Source URL */}
-        {userRecipe.source_url && (
+        {userRecipe.source_url && !userRecipe.source_url.startsWith("upload://") && !userRecipe.source_url.startsWith("manual://") && (
           <div className="mb-4">
             <a
               href={userRecipe.source_url}
@@ -301,7 +264,7 @@ export function SavedRecipeView() {
         )}
 
         {/* Metadata */}
-        {recipe.metadata && !isEditing && (
+        {recipe.metadata && (
           <div className="flex flex-wrap gap-4 mb-6 text-sm text-brown-medium">
             {recipe.metadata.author && (
               <span className="flex items-center">
@@ -344,206 +307,71 @@ export function SavedRecipeView() {
         )}
 
         {/* Tags */}
-        <div className="mb-6">
-          <h3 className="text-sm font-medium text-brown-medium mb-2">Tags</h3>
-          {isEditing ? (
-            <div>
-              <div className="flex flex-wrap gap-2 mb-2">
-                {editedTags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="inline-flex items-center px-2 py-1 bg-coral bg-opacity-10 text-coral-dark text-sm rounded-full"
-                  >
-                    {tag}
-                    <button
-                      onClick={() => handleRemoveTag(tag)}
-                      className="ml-1 text-coral hover:text-coral-dark"
-                    >
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </span>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), handleAddTag())}
-                  placeholder="Add a tag"
-                  className="flex-1 px-3 py-1 border border-gray-300 rounded text-sm"
-                />
-                <button
-                  onClick={handleAddTag}
-                  className="px-3 py-1 bg-gray-100 text-brown-medium rounded hover:bg-gray-200 text-sm"
-                >
-                  Add
-                </button>
-              </div>
-            </div>
-          ) : (
+        {userRecipe.tags && userRecipe.tags.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-sm font-medium text-brown-medium mb-2">Tags</h3>
             <div className="flex flex-wrap gap-2">
-              {(userRecipe.tags || []).length > 0 ? (
-                userRecipe.tags?.map((tag) => (
-                  <span
-                    key={tag}
-                    className="px-2 py-1 bg-gray-100 text-brown-medium text-sm rounded-full"
-                  >
-                    {tag}
-                  </span>
-                ))
-              ) : (
-                <span className="text-gray-500 text-sm">No tags</span>
-              )}
+              {userRecipe.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="px-2 py-1 bg-gray-100 text-brown-medium text-sm rounded-full"
+                >
+                  {tag}
+                </span>
+              ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Notes */}
-        <div className="mb-6">
-          <h3 className="text-sm font-medium text-brown-medium mb-2">Personal Notes</h3>
-          {isEditing ? (
-            <textarea
-              value={editedNotes}
-              onChange={(e) => setEditedNotes(e.target.value)}
-              placeholder="Add your notes about this recipe..."
-              className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
-              rows={3}
-            />
-          ) : (
-            <p className="text-brown-medium text-sm">
-              {userRecipe.notes || "No notes added"}
-            </p>
-          )}
-        </div>
+        {userRecipe.notes && (
+          <div className="mb-6">
+            <h3 className="text-sm font-medium text-brown-medium mb-2">Personal Notes</h3>
+            <p className="text-brown-medium text-sm">{userRecipe.notes}</p>
+          </div>
+        )}
 
         {/* Ingredients */}
         <div className="mb-6">
           <h3 className="text-lg font-semibold text-brown-dark mb-3">Ingredients</h3>
-          {isEditing ? (
-            <div className="space-y-2">
-              {editedRecipe.ingredients.map((ingredient, index) => (
-                <div key={index} className="flex gap-2 items-start">
-                  <input
-                    type="text"
-                    value={ingredient.display_text || ingredient.name}
-                    onChange={(e) => updateIngredient(index, "display_text", e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm"
-                    placeholder="Ingredient"
-                  />
-                  <button
-                    onClick={() => removeIngredient(index)}
-                    className="p-2 text-red-600 hover:bg-red-50 rounded"
-                  >
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              ))}
-              <button
-                onClick={addIngredient}
-                className="text-sm text-coral hover:text-coral-dark"
-              >
-                + Add Ingredient
-              </button>
-            </div>
-          ) : (
-            <ul className="space-y-2">
-              {recipe.ingredients.map((ingredient, index) => (
-                <li key={index} className="flex items-start">
-                  <span className="text-coral mr-2">•</span>
-                  <span>{ingredient.display_text || ingredient.name}</span>
-                </li>
-              ))}
-            </ul>
-          )}
+          <ul className="space-y-2">
+            {recipe.ingredients.map((ingredient, index) => (
+              <li key={index} className="flex items-start">
+                <span className="text-coral mr-2">•</span>
+                <span>{ingredient.display_text || ingredient.name}</span>
+              </li>
+            ))}
+          </ul>
         </div>
 
         {/* Instructions */}
         <div className="mb-6">
           <h3 className="text-lg font-semibold text-brown-dark mb-3">Instructions</h3>
-          {isEditing ? (
-            <div className="space-y-3">
-              {editedRecipe.instructions.map((instruction, index) => (
-                <div key={index} className="flex gap-2 items-start">
-                  <span className="flex-shrink-0 w-6 h-6 bg-coral text-white text-sm rounded-full flex items-center justify-center mt-2">
-                    {index + 1}
-                  </span>
-                  <textarea
-                    value={instruction}
-                    onChange={(e) => updateInstruction(index, e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm"
-                    rows={2}
-                  />
-                  <button
-                    onClick={() => removeInstruction(index)}
-                    className="p-2 text-red-600 hover:bg-red-50 rounded"
-                  >
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              ))}
-              <button
-                onClick={addInstruction}
-                className="text-sm text-coral hover:text-coral-dark"
-              >
-                + Add Step
-              </button>
-            </div>
-          ) : (
-            <ol className="space-y-3">
-              {recipe.instructions.map((instruction, index) => (
-                <li key={index} className="flex">
-                  <span className="flex-shrink-0 w-6 h-6 bg-coral text-white text-sm rounded-full flex items-center justify-center mr-3 mt-0.5">
-                    {index + 1}
-                  </span>
-                  <span className="text-brown-medium">{instruction}</span>
-                </li>
-              ))}
-            </ol>
-          )}
+          <ol className="space-y-3">
+            {recipe.instructions.map((instruction, index) => (
+              <li key={index} className="flex">
+                <span className="flex-shrink-0 w-6 h-6 bg-coral text-white text-sm rounded-full flex items-center justify-center mr-3 mt-0.5">
+                  {index + 1}
+                </span>
+                <span className="text-brown-medium">{instruction}</span>
+              </li>
+            ))}
+          </ol>
         </div>
 
-        {/* Edit mode actions */}
-        {isEditing && (
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-            <button
-              onClick={handleCancelEdit}
-              className="px-4 py-2 text-brown-medium hover:bg-gray-100 rounded-lg"
-              disabled={isSaving}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              className="px-4 py-2 bg-coral text-white rounded-lg hover:bg-coral-dark disabled:opacity-50"
-            >
-              {isSaving ? "Saving..." : "Save Changes"}
-            </button>
-          </div>
-        )}
-
-        {/* View mode footer */}
-        {!isEditing && (
-          <div className="flex justify-between items-center pt-4 border-t border-gray-200">
-            <Link
-              to="/"
-              className="text-coral hover:text-coral-dark flex items-center"
-            >
-              <svg className="h-5 w-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              Back to recipes
-            </Link>
-            <ExportDropdown recipe={recipe} />
-          </div>
-        )}
+        {/* Footer */}
+        <div className="flex justify-between items-center pt-4 border-t border-gray-200">
+          <Link
+            to="/"
+            className="text-coral hover:text-coral-dark flex items-center"
+          >
+            <svg className="h-5 w-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Back to recipes
+          </Link>
+          <ExportDropdown recipe={recipe} />
+        </div>
       </div>
 
       {/* Delete confirmation modal */}
