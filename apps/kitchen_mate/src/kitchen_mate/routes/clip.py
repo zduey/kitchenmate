@@ -121,7 +121,7 @@ async def clip_recipe_from_upload(
     if not settings.anthropic_api_key:
         raise HTTPException(
             status_code=503,
-            detail="Recipe extraction from uploads requires ANTHROPIC_API_KEY",
+            detail="This feature only available for beta-testers.",
         )
 
     temp_path = None

@@ -61,8 +61,7 @@ def detect_file_type(content: bytes, filename: str) -> tuple[str, str, str]:
 
     if ext not in ALL_EXTENSIONS:
         raise FileValidationError(
-            f"Unsupported file extension: {ext}. "
-            f"Supported: {', '.join(sorted(ALL_EXTENSIONS))}"
+            f"Unsupported file extension: {ext}. Supported: {', '.join(sorted(ALL_EXTENSIONS))}"
         )
 
     # Handle text files (no magic bytes)
@@ -72,9 +71,7 @@ def detect_file_type(content: bytes, filename: str) -> tuple[str, str, str]:
             mime = "text/markdown" if ext == ".md" else "text/plain"
             return mime, ext, "document"
         except UnicodeDecodeError as e:
-            raise FileValidationError(
-                f"File {filename} is not valid UTF-8 text"
-            ) from e
+            raise FileValidationError(f"File {filename} is not valid UTF-8 text") from e
 
     # Check for WEBP (special case: RIFF....WEBP format)
     if ext == ".webp":
