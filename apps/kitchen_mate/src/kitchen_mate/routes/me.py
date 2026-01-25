@@ -78,7 +78,9 @@ async def _save_direct_recipe(
     source_url = f"{source_prefix}://{recipe_hash}"
 
     # Determine parsing method
-    default_method = "manual" if save_request.source_type == SourceType.manual else Parser.llm_image.value
+    default_method = (
+        "manual" if save_request.source_type == SourceType.manual else Parser.llm_image.value
+    )
     parsing_method = save_request.parsing_method or default_method
 
     # Check if this exact recipe was already saved (by hash)
