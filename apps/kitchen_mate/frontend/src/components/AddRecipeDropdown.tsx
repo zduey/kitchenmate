@@ -47,10 +47,10 @@ export function AddRecipeDropdown({ variant = "button" }: AddRecipeDropdownProps
       ) : (
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center justify-center w-12 h-12 bg-coral text-white rounded-full hover:bg-coral-dark shadow-lg transition-colors"
+          className="flex items-center justify-center w-10 h-10 bg-coral text-white rounded-full hover:bg-coral-dark shadow-lg transition-colors"
           aria-label="Add recipe"
         >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
         </button>
