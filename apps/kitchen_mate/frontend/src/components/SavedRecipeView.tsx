@@ -9,6 +9,7 @@ import {
 } from "../api/recipes";
 import { ExportDropdown } from "./ExportDropdown";
 import { LoadingSpinner } from "./LoadingSpinner";
+import { formatTagForDisplay, normalizeTag } from "../utils/tags";
 
 export function SavedRecipeView() {
   const { id } = useParams<{ id: string }>();
@@ -96,7 +97,7 @@ export function SavedRecipeView() {
   };
 
   const handleAddTag = () => {
-    const tag = newTag.trim().toLowerCase();
+    const tag = normalizeTag(newTag);
     if (tag && !editedTags.includes(tag)) {
       setEditedTags([...editedTags, tag]);
     }
@@ -354,7 +355,7 @@ export function SavedRecipeView() {
                     key={tag}
                     className="inline-flex items-center px-2 py-1 bg-coral bg-opacity-10 text-coral-dark text-sm rounded-full"
                   >
-                    {tag}
+                    {formatTagForDisplay(tag)}
                     <button
                       onClick={() => handleRemoveTag(tag)}
                       className="ml-1 text-coral hover:text-coral-dark"
@@ -391,7 +392,7 @@ export function SavedRecipeView() {
                     key={tag}
                     className="px-2 py-1 bg-gray-100 text-brown-medium text-sm rounded-full"
                   >
-                    {tag}
+                    {formatTagForDisplay(tag)}
                   </span>
                 ))
               ) : (
