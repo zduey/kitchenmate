@@ -246,12 +246,63 @@ async def update_recipe(
 # =============================================================================
 
 
+def _recipe_matches_search(recipe_data: dict, tags_data: list[str] | None, notes: str | None, search: str) -> bool:
+    """Check if a recipe matches the search query.
+
+    Searches across title, ingredients, instructions, description, tags, and notes.
+    """
+    search_lower = search.lower()
+
+    # Search in title
+    title = recipe_data.get("title", "")
+    if title and search_lower in title.lower():
+        return True
+
+    # Search in description
+    description = recipe_data.get("description", "")
+    if description and search_lower in description.lower():
+        return True
+
+    # Search in ingredients
+    ingredients = recipe_data.get("ingredients", [])
+    for ingredient in ingredients:
+        if isinstance(ingredient, dict):
+            text = ingredient.get("text", "")
+        else:
+            text = str(ingredient)
+        if text and search_lower in text.lower():
+            return True
+
+    # Search in instructions
+    instructions = recipe_data.get("instructions", [])
+    for instruction in instructions:
+        if isinstance(instruction, dict):
+            text = instruction.get("text", "")
+        else:
+            text = str(instruction)
+        if text and search_lower in text.lower():
+            return True
+
+    # Search in tags
+    if tags_data:
+        for tag in tags_data:
+            if search_lower in tag.lower():
+                return True
+
+    # Search in notes
+    if notes and search_lower in notes.lower():
+        return True
+
+    return False
+
+
 async def get_user_recipes(
     user_id: str,
     cursor: str | None = None,
     limit: int = 50,
     tags: list[str] | None = None,
     modified_only: bool = False,
+    search: str | None = None,
 ) -> tuple[list[UserRecipeSummary], str | None, bool]:
     """Get paginated user recipes.
 
@@ -261,6 +312,7 @@ async def get_user_recipes(
         limit: Maximum number of recipes to return
         tags: Filter by tags (recipes must have ALL specified tags)
         modified_only: Only return modified recipes
+        search: Free-text search across title, ingredients, instructions, tags, notes
 
     Returns:
         Tuple of (recipes, next_cursor, has_more)
@@ -301,6 +353,10 @@ async def get_user_recipes(
 
             # Filter by tags in Python (same as current implementation)
             if tags and (not tags_data or not all(tag in tags_data for tag in tags)):
+                continue
+
+            # Filter by search query
+            if search and not _recipe_matches_search(recipe_data, tags_data, user_recipe.notes, search):
                 continue
 
             recipes.append(

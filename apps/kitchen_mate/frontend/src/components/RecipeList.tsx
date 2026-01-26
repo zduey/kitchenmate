@@ -10,12 +10,14 @@ interface RecipeListProps {
   viewMode?: "grid" | "tags";
   tagFilter?: string | null;
   onTagSelect?: (tag: string | null) => void;
+  searchQuery?: string;
 }
 
 export function RecipeList({
   viewMode = "grid",
   tagFilter = null,
   onTagSelect,
+  searchQuery = "",
 }: RecipeListProps) {
   const [recipes, setRecipes] = useState<UserRecipeSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,7 +44,7 @@ export function RecipeList({
     return { tags: counts, untagged };
   }, [recipes]);
 
-  const fetchRecipes = useCallback(async (cursor?: string, filter?: string | null, isInitial?: boolean) => {
+  const fetchRecipes = useCallback(async (cursor?: string, filter?: string | null, search?: string, isInitial?: boolean) => {
     if (isInitial) {
       setLoading(true);
       setRecipes([]);
@@ -53,7 +55,7 @@ export function RecipeList({
     try {
       // Don't pass tag filter to API for untagged - we'll filter client-side
       const apiFilter = filter && filter !== "__untagged__" ? [filter] : undefined;
-      const response = await listUserRecipes({ cursor, limit: 12, tags: apiFilter });
+      const response = await listUserRecipes({ cursor, limit: 12, tags: apiFilter, search: search || undefined });
 
       if (cursor) {
         setRecipes((prev) => [...prev, ...response.recipes]);
@@ -74,22 +76,22 @@ export function RecipeList({
     }
   }, []);
 
-  // Initial load and refetch when tagFilter changes
+  // Initial load and refetch when tagFilter or searchQuery changes
   useEffect(() => {
-    fetchRecipes(undefined, tagFilter, true);
-  }, [tagFilter, fetchRecipes]);
+    fetchRecipes(undefined, tagFilter, searchQuery, true);
+  }, [tagFilter, searchQuery, fetchRecipes]);
 
   const handleLoadMore = async () => {
     if (!nextCursor || loadingMore) return;
     setLoadingMore(true);
-    await fetchRecipes(nextCursor, tagFilter);
+    await fetchRecipes(nextCursor, tagFilter, searchQuery);
     setLoadingMore(false);
   };
 
   const handleRetry = async () => {
     setError(null);
     setLoading(true);
-    await fetchRecipes(undefined, tagFilter);
+    await fetchRecipes(undefined, tagFilter, searchQuery);
     setLoading(false);
   };
 
