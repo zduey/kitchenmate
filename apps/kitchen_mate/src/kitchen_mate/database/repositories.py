@@ -246,7 +246,9 @@ async def update_recipe(
 # =============================================================================
 
 
-def _recipe_matches_search(recipe_data: dict, tags_data: list[str] | None, notes: str | None, search: str) -> bool:
+def _recipe_matches_search(
+    recipe_data: dict, tags_data: list[str] | None, notes: str | None, search: str
+) -> bool:
     """Check if a recipe matches the search query.
 
     Searches across title, ingredients, instructions, description, tags, and notes.
@@ -356,7 +358,9 @@ async def get_user_recipes(
                 continue
 
             # Filter by search query
-            if search and not _recipe_matches_search(recipe_data, tags_data, user_recipe.notes, search):
+            if search and not _recipe_matches_search(
+                recipe_data, tags_data, user_recipe.notes, search
+            ):
                 continue
 
             recipes.append(
