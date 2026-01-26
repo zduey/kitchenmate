@@ -1,4 +1,12 @@
-import { Recipe, ClipRequest, ClipResponse, ConvertRequest, OutputFormat, ApiError } from "../types/recipe";
+import {
+  Recipe,
+  ClipRequest,
+  ClipResponse,
+  ClipUploadResponse,
+  ConvertRequest,
+  OutputFormat,
+  ApiError,
+} from "../types/recipe";
 
 const API_BASE = "/api";
 
@@ -35,6 +43,24 @@ export async function clipRecipe(url: string, forceLlm = false): Promise<Recipe>
 
   const data: ClipResponse = await response.json();
   return data.recipe;
+}
+
+export async function uploadRecipe(file: File): Promise<ClipUploadResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(`${API_BASE}/clip/upload`, {
+    method: "POST",
+    body: formData,
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    const error: ApiError = await response.json();
+    throw new ClipError(error.detail, response.status);
+  }
+
+  return response.json();
 }
 
 export async function convertRecipe(

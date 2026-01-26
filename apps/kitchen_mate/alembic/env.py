@@ -14,7 +14,10 @@ from kitchen_mate.database.models import Base
 
 config = context.config
 target_metadata = Base.metadata
-db_url = f"sqlite+aiosqlite:///{os.getenv('CACHE_DB_PATH')}"
+
+# Get database path from environment or use default
+db_path = os.getenv('CACHE_DB_PATH', 'kitchenmate.db')
+db_url = f"sqlite+aiosqlite:///{db_path}"
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

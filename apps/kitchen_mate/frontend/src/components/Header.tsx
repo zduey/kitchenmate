@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useAuthContext } from "../hooks/useAuthContext";
 import { useRequireAuth } from "../hooks/useRequireAuth";
 import { UserDropdown } from "./UserDropdown";
+import { AddRecipeDropdown } from "./AddRecipeDropdown";
 
 interface HeaderProps {
   onSignInClick: () => void;
@@ -55,13 +56,6 @@ export function Header({ onSignInClick }: HeaderProps) {
 
           {/* Navigation */}
           <nav className="flex items-center gap-6">
-            <Link
-              to="/clip"
-              className="text-sm font-medium text-brown-medium hover:text-coral transition-colors"
-            >
-              Clip Recipe
-            </Link>
-
             {isAuthorized ? (
               <Link
                 to="/"
@@ -77,6 +71,8 @@ export function Header({ onSignInClick }: HeaderProps) {
                 My Recipes
               </span>
             )}
+
+            <AddRecipeDropdown variant="button" />
           </nav>
         </div>
 
