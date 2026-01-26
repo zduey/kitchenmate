@@ -25,6 +25,7 @@ export interface ListRecipesParams {
   limit?: number;
   tags?: string[];
   modifiedOnly?: boolean;
+  search?: string;
 }
 
 /**
@@ -46,6 +47,9 @@ export async function listUserRecipes(
   }
   if (params.modifiedOnly) {
     searchParams.set("modified_only", "true");
+  }
+  if (params.search) {
+    searchParams.set("search", params.search);
   }
 
   const queryString = searchParams.toString();

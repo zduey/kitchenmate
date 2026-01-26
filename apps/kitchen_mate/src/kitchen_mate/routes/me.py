@@ -213,6 +213,7 @@ async def list_recipes(
     limit: Annotated[int, Query(ge=1, le=100, description="Number of recipes")] = 50,
     tags: Annotated[str | None, Query(description="Filter by tags (comma-separated)")] = None,
     modified_only: Annotated[bool, Query(description="Only show modified recipes")] = False,
+    search: Annotated[str | None, Query(description="Free-text search query")] = None,
 ) -> ListUserRecipesResponse:
     """List all recipes in the current user's collection."""
     # Parse tags
@@ -224,6 +225,7 @@ async def list_recipes(
         limit=limit,
         tags=tag_list,
         modified_only=modified_only,
+        search=search.strip() if search else None,
     )
 
     return ListUserRecipesResponse(
