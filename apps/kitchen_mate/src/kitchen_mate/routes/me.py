@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from recipe_clipper.exceptions import (
     LLMError,
@@ -16,6 +16,13 @@ from recipe_clipper.exceptions import (
 )
 
 from kitchen_mate.auth import User, get_user
+from kitchen_mate.authorization import (
+    Permission,
+    TierInfo,
+    UpgradeRequiredError,
+    check_permission_soft,
+    get_tier_info,
+)
 from kitchen_mate.config import Settings, get_settings
 from kitchen_mate.database import (
     delete_user_recipe,
@@ -26,7 +33,7 @@ from kitchen_mate.database import (
     store_recipe,
     update_user_recipe,
 )
-from kitchen_mate.extraction import LLMNotAllowedError, extract_recipe, get_client_ip
+from kitchen_mate.extraction import LLMNotAllowedError, extract_recipe
 from kitchen_mate.schemas import (
     GetUserRecipeResponse,
     ListUserRecipesResponse,
@@ -47,9 +54,9 @@ router = APIRouter()
 @router.post("/me/recipes", status_code=201)
 async def save_recipe(
     save_request: SaveRecipeRequest,
-    request: Request,
     user: Annotated[User, Depends(get_user)],
     settings: Annotated[Settings, Depends(get_settings)],
+    tier_info: Annotated[TierInfo, Depends(get_tier_info)],
 ) -> SaveRecipeResponse:
     """Save a recipe to the current user's collection.
 
@@ -63,7 +70,7 @@ async def save_recipe(
     if save_request.source_type in (SourceType.upload, SourceType.manual):
         return await _save_direct_recipe(save_request, user)
     else:
-        return await _save_web_recipe(save_request, request, user, settings)
+        return await _save_web_recipe(save_request, user, settings, tier_info)
 
 
 async def _save_direct_recipe(
@@ -133,13 +140,16 @@ async def _save_direct_recipe(
 
 async def _save_web_recipe(
     save_request: SaveRecipeRequest,
-    request: Request,
     user: User,
     settings: Settings,
+    tier_info: TierInfo,
 ) -> SaveRecipeResponse:
     """Save a recipe from a web URL."""
     url = str(save_request.url)
-    client_ip = get_client_ip(request)
+
+    # Check if user can use AI features
+    # (authorization is only enforced if LLM fallback is actually needed)
+    can_use_ai, _ = check_permission_soft(Permission.CLIP_AI, tier_info)
 
     try:
         # Check if recipe is already cached
@@ -169,8 +179,7 @@ async def _save_web_recipe(
             timeout=save_request.timeout,
             use_llm_fallback=save_request.use_llm_fallback,
             api_key=settings.anthropic_api_key,
-            client_ip=client_ip,
-            allowed_ips=settings.llm_allowed_ips,
+            llm_permitted=can_use_ai,
         )
 
         # Store the parsed recipe
@@ -199,7 +208,7 @@ async def _save_web_recipe(
     except NetworkError as error:
         raise HTTPException(status_code=502, detail=f"Failed to fetch URL: {error}") from error
     except LLMNotAllowedError as error:
-        raise HTTPException(status_code=403, detail=str(error)) from error
+        raise UpgradeRequiredError(feature=Permission.CLIP_AI.value) from error
     except (RecipeParsingError, LLMError) as error:
         raise HTTPException(status_code=422, detail=f"Failed to parse recipe: {error}") from error
     except RecipeClipperError as error:

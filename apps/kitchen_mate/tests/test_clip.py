@@ -120,10 +120,18 @@ def test_clip_recipe_timeout_bounds(client: TestClient) -> None:
     assert response.status_code == 422
 
 
-def test_clip_recipe_llm_fallback_ip_not_allowed(
-    client: TestClient, settings_with_api_key_and_ip_whitelist: None
+def test_clip_recipe_llm_fallback_free_tier_blocked(
+    client: TestClient, settings_free_tier: None
 ) -> None:
-    """Test that LLM fallback is blocked when IP is not in whitelist."""
+    """Test that LLM fallback is blocked for free tier users when recipe_scrapers fails."""
+    from tests.test_auth import create_test_jwt
+
+    token = create_test_jwt(
+        "free-user-456",
+        "free@example.com",
+        "test-secret-key-at-least-32-characters-long",
+    )
+
     mock_response = MagicMock()
     mock_response.content = "<html>test</html>"
 
@@ -135,16 +143,27 @@ def test_clip_recipe_llm_fallback_ip_not_allowed(
             response = client.post(
                 "/api/clip",
                 json={"url": "https://example.com/recipe", "use_llm_fallback": True},
+                cookies={"access_token": token},
             )
 
     assert response.status_code == 403
-    assert "Upgrade" in response.json()["detail"]
+    detail = response.json()["detail"]
+    assert detail["error_code"] == "upgrade_required"
+    assert detail["feature"] == "clip_ai"
 
 
-def test_clip_recipe_llm_fallback_no_whitelist_blocks_all(
-    client: TestClient, settings_with_api_key_no_whitelist: None
+def test_clip_recipe_llm_fallback_pro_tier_allowed(
+    client: TestClient, settings_pro_tier: None
 ) -> None:
-    """Test that LLM fallback is blocked when no whitelist is configured."""
+    """Test that LLM fallback works for pro tier users."""
+    from tests.test_auth import create_test_jwt
+
+    token = create_test_jwt(
+        "test-user-123",
+        "pro@example.com",
+        "test-secret-key-at-least-32-characters-long",
+    )
+
     mock_response = MagicMock()
     mock_response.content = "<html>test</html>"
 
@@ -153,49 +172,65 @@ def test_clip_recipe_llm_fallback_no_whitelist_blocks_all(
             "kitchen_mate.extraction.parse_with_recipe_scrapers",
             side_effect=RecipeParsingError("Not supported"),
         ):
-            response = client.post(
-                "/api/clip",
-                json={"url": "https://example.com/recipe", "use_llm_fallback": True},
-            )
-
-    assert response.status_code == 403
-    assert "Upgrade" in response.json()["detail"]
-
-
-def test_clip_recipe_llm_fallback_ip_allowed(
-    client: TestClient, settings_with_api_key_allow_all: None
-) -> None:
-    """Test that LLM fallback works when IP is allowed."""
-    mock_response = MagicMock()
-    mock_response.content = "<html>test</html>"
-
-    with patch("kitchen_mate.extraction.is_ip_allowed", return_value=True):
-        with patch("kitchen_mate.extraction.fetch_url", return_value=mock_response):
-            with patch(
-                "kitchen_mate.extraction.parse_with_recipe_scrapers",
-                side_effect=RecipeParsingError("Not supported"),
-            ):
-                with patch("recipe_clipper.parsers.llm_parser.parse_with_claude") as mock_llm:
-                    mock_llm.return_value = Recipe(
-                        title="LLM Recipe",
-                        ingredients=[],
-                        instructions=["Step 1"],
-                        source_url="https://example.com/recipe",
-                    )
-                    response = client.post(
-                        "/api/clip",
-                        json={"url": "https://example.com/recipe", "use_llm_fallback": True},
-                    )
+            with patch("recipe_clipper.parsers.llm_parser.parse_with_claude") as mock_llm:
+                mock_llm.return_value = Recipe(
+                    title="LLM Recipe",
+                    ingredients=[],
+                    instructions=["Step 1"],
+                    source_url="https://example.com/recipe",
+                )
+                response = client.post(
+                    "/api/clip",
+                    json={"url": "https://example.com/recipe", "use_llm_fallback": True},
+                    cookies={"access_token": token},
+                )
 
     assert response.status_code == 200
     assert response.json()["recipe"]["title"] == "LLM Recipe"
     assert response.json()["cached"] is False
 
 
-def test_clip_recipe_no_llm_fallback_ignores_whitelist(
-    client: TestClient, settings_with_api_key_and_ip_whitelist: None
+def test_clip_recipe_single_tenant_allows_llm(
+    client: TestClient, settings_with_api_key: None
 ) -> None:
-    """Test that IP whitelist is not checked when LLM fallback is disabled."""
+    """Test that LLM fallback works in single-tenant mode (all users are pro)."""
+    mock_response = MagicMock()
+    mock_response.content = "<html>test</html>"
+
+    with patch("kitchen_mate.extraction.fetch_url", return_value=mock_response):
+        with patch(
+            "kitchen_mate.extraction.parse_with_recipe_scrapers",
+            side_effect=RecipeParsingError("Not supported"),
+        ):
+            with patch("recipe_clipper.parsers.llm_parser.parse_with_claude") as mock_llm:
+                mock_llm.return_value = Recipe(
+                    title="LLM Recipe",
+                    ingredients=[],
+                    instructions=["Step 1"],
+                    source_url="https://example.com/recipe",
+                )
+                response = client.post(
+                    "/api/clip",
+                    json={"url": "https://example.com/recipe", "use_llm_fallback": True},
+                )
+
+    assert response.status_code == 200
+    assert response.json()["recipe"]["title"] == "LLM Recipe"
+    assert response.json()["cached"] is False
+
+
+def test_clip_recipe_no_llm_fallback_works_for_free_tier(
+    client: TestClient, settings_free_tier: None
+) -> None:
+    """Test that basic clipping (no LLM) works for free tier users."""
+    from tests.test_auth import create_test_jwt
+
+    token = create_test_jwt(
+        "free-user-456",
+        "free@example.com",
+        "test-secret-key-at-least-32-characters-long",
+    )
+
     mock_recipe = Recipe(
         title="Test Recipe",
         ingredients=[],
@@ -210,6 +245,7 @@ def test_clip_recipe_no_llm_fallback_ignores_whitelist(
             response = client.post(
                 "/api/clip",
                 json={"url": "https://example.com/recipe", "use_llm_fallback": False},
+                cookies={"access_token": token},
             )
 
     assert response.status_code == 200

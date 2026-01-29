@@ -5,14 +5,11 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from fastapi import Request
-
 from recipe_clipper.exceptions import LLMError, RecipeParsingError
 from recipe_clipper.http import fetch_url
 from recipe_clipper.models import Recipe
 from recipe_clipper.parsers.recipe_scrapers_parser import parse_with_recipe_scrapers
 
-from kitchen_mate.config import is_ip_allowed
 from kitchen_mate.database import get_cached_recipe, hash_content
 from kitchen_mate.schemas import Parser
 
@@ -26,48 +23,26 @@ class LLMNotAllowedError(Exception):
     pass
 
 
-def get_client_ip(request: Request) -> str | None:
-    """Get the real client IP, checking X-Forwarded-For header for proxied requests.
-
-    Args:
-        request: The FastAPI request object
-
-    Returns:
-        The client IP address or None if not available
-    """
-    forwarded_for = request.headers.get("x-forwarded-for")
-    if forwarded_for:
-        return forwarded_for.split(",")[0].strip()
-
-    if request.client:
-        return request.client.host
-
-    return None
-
-
-def check_llm_allowed(client_ip: str | None, api_key: str | None, allowed_ips: str | None) -> None:
+def check_llm_allowed(api_key: str | None, llm_permitted: bool) -> None:
     """Check if LLM usage is allowed for this request.
 
     Args:
-        client_ip: The client's IP address
         api_key: The Anthropic API key (None if not configured)
-        allowed_ips: Comma-separated list of allowed IPs/CIDR ranges
+        llm_permitted: Whether the user has permission to use LLM
 
     Raises:
         LLMError: If no API key is configured
-        LLMNotAllowedError: If the client IP is not in the allowed list
+        LLMNotAllowedError: If the user does not have LLM permission
     """
-    logger.info("LLM extraction attempted from IP: %s", client_ip)
-
     if not api_key:
         logger.warning("LLM extraction rejected: no API key configured")
         raise LLMError("LLM extraction requires ANTHROPIC_API_KEY environment variable")
 
-    if not client_ip or not is_ip_allowed(client_ip, allowed_ips):
-        logger.warning("LLM extraction rejected: IP %s not in allowed list", client_ip)
+    if not llm_permitted:
+        logger.warning("LLM extraction rejected: user lacks permission")
         raise LLMNotAllowedError("LLM extraction not enabled")
 
-    logger.info("LLM extraction allowed for IP: %s", client_ip)
+    logger.info("LLM extraction allowed")
 
 
 async def parse_with_llm(url: str, api_key: str | None) -> Recipe:
@@ -90,8 +65,7 @@ async def extract_recipe(
     timeout: int,
     use_llm_fallback: bool,
     api_key: str | None,
-    client_ip: str | None,
-    allowed_ips: str | None,
+    llm_permitted: bool = False,
     force_llm: bool = False,
     check_content_changed: bool = False,
 ) -> tuple[Recipe, Parser, str | None, bool | None]:
@@ -104,8 +78,7 @@ async def extract_recipe(
         timeout: HTTP timeout in seconds
         use_llm_fallback: Whether to fall back to LLM if recipe-scrapers fails
         api_key: Anthropic API key for LLM extraction
-        client_ip: Client IP for LLM access control
-        allowed_ips: Allowed IPs for LLM access
+        llm_permitted: Whether the user has permission to use LLM features
         force_llm: Skip recipe-scrapers and use LLM directly
         check_content_changed: If True, check if content changed vs cached version
 
@@ -114,7 +87,7 @@ async def extract_recipe(
         content_changed is None unless check_content_changed is True
     """
     if force_llm:
-        check_llm_allowed(client_ip, api_key, allowed_ips)
+        check_llm_allowed(api_key, llm_permitted)
         recipe = await parse_with_llm(url, api_key)
         return recipe, Parser.llm, None, None
 
@@ -139,6 +112,6 @@ async def extract_recipe(
             raise
 
     # Fall back to LLM
-    check_llm_allowed(client_ip, api_key, allowed_ips)
+    check_llm_allowed(api_key, llm_permitted)
     recipe = await parse_with_llm(url, api_key)
     return recipe, Parser.llm, content_hash, content_changed

@@ -16,7 +16,10 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def client() -> Generator[TestClient, None, None]:
-    """Create a test client for the FastAPI app with caching disabled."""
+    """Create a test client for the FastAPI app with caching disabled.
+
+    Default client runs in single-tenant mode (pro tier by default).
+    """
     # Disable caching and Supabase auth for tests by default
     # (explicit None overrides .env file values)
     test_settings = Settings(cache_enabled=False, supabase_jwt_secret=None, supabase_url=None)
@@ -28,7 +31,7 @@ def client() -> Generator[TestClient, None, None]:
 
 @pytest.fixture
 def settings_with_api_key(client: TestClient) -> Generator[None, None, None]:
-    """Override settings to include an API key."""
+    """Override settings to include an API key (single-tenant, pro tier)."""
     test_settings = Settings(
         anthropic_api_key="test-api-key", cache_enabled=False, supabase_url=None
     )
@@ -47,13 +50,13 @@ def settings_without_api_key(client: TestClient) -> Generator[None, None, None]:
 
 
 @pytest.fixture
-def settings_with_api_key_and_ip_whitelist(client: TestClient) -> Generator[None, None, None]:
-    """Override settings to include API key and IP whitelist."""
+def settings_free_tier(client: TestClient) -> Generator[None, None, None]:
+    """Override settings for multi-tenant mode with no pro users (free tier)."""
     test_settings = Settings(
         anthropic_api_key="test-api-key",
-        llm_allowed_ips="127.0.0.1,192.168.1.0/24",
+        supabase_jwt_secret="test-secret-key-at-least-32-characters-long",
+        pro_user_ids=set(),
         cache_enabled=False,
-        supabase_url=None,
     )
     app.dependency_overrides[get_settings] = lambda: test_settings
     yield
@@ -61,27 +64,13 @@ def settings_with_api_key_and_ip_whitelist(client: TestClient) -> Generator[None
 
 
 @pytest.fixture
-def settings_with_api_key_no_whitelist(client: TestClient) -> Generator[None, None, None]:
-    """Override settings to include API key but no IP whitelist (all blocked)."""
+def settings_pro_tier(client: TestClient) -> Generator[None, None, None]:
+    """Override settings for multi-tenant mode with test user as pro."""
     test_settings = Settings(
         anthropic_api_key="test-api-key",
-        llm_allowed_ips=None,
+        supabase_jwt_secret="test-secret-key-at-least-32-characters-long",
+        pro_user_ids={"test-user-123"},
         cache_enabled=False,
-        supabase_url=None,
-    )
-    app.dependency_overrides[get_settings] = lambda: test_settings
-    yield
-    app.dependency_overrides.clear()
-
-
-@pytest.fixture
-def settings_with_api_key_allow_all(client: TestClient) -> Generator[None, None, None]:
-    """Override settings to include API key with wildcard IP whitelist."""
-    test_settings = Settings(
-        anthropic_api_key="test-api-key",
-        llm_allowed_ips="0.0.0.0/0",
-        cache_enabled=False,
-        supabase_url=None,
     )
     app.dependency_overrides[get_settings] = lambda: test_settings
     yield
