@@ -10,7 +10,6 @@ import {
 import { RecipeEditor } from "./RecipeEditor";
 import { ExportDropdown } from "./ExportDropdown";
 import { LoadingSpinner } from "./LoadingSpinner";
-import { formatTagForDisplay, normalizeTag } from "../utils/tags";
 
 export function SavedRecipeView() {
   const { id } = useParams<{ id: string }>();

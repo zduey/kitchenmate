@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { BrowserRouter, Routes, Route, Link, Navigate, useSearchParams } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from "react-router-dom";
 import { Header } from "./components/Header";
 import { AuthModal } from "./components/AuthModal";
 import { AuthProvider } from "./contexts/AuthContext";
