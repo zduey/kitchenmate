@@ -8,13 +8,15 @@ import { LoadingSpinner } from "./LoadingSpinner";
 import { ErrorMessage } from "./ErrorMessage";
 import { useRequireAuth } from "../hooks/useRequireAuth";
 
+import { ErrorType } from "./ErrorMessage";
+
 type PageState =
   | { status: "idle" }
   | { status: "extracting"; url: string }
   | { status: "extracted"; url: string; recipe: Recipe }
   | { status: "saving"; url: string; recipe: Recipe }
   | { status: "saved"; url: string; recipe: Recipe; recipeId: string }
-  | { status: "error"; url: string; message: string };
+  | { status: "error"; url: string; message: string; errorType: ErrorType };
 
 export function AddFromUrlPage() {
   const [state, setState] = useState<PageState>({ status: "idle" });
@@ -33,11 +35,19 @@ export function AddFromUrlPage() {
       const recipe = await clipRecipe(trimmedUrl);
       setState({ status: "extracted", url: trimmedUrl, recipe });
     } catch (error) {
-      const message =
-        error instanceof ClipError
-          ? error.message
-          : "An unexpected error occurred";
-      setState({ status: "error", url: trimmedUrl, message });
+      let message = "An unexpected error occurred";
+      let errorType: ErrorType = "generic";
+
+      if (error instanceof ClipError) {
+        message = error.message;
+        if (error.isUpgradeRequired) {
+          errorType = "upgrade_required";
+        } else if (error.isSubscriptionExpired) {
+          errorType = "subscription_expired";
+        }
+      }
+
+      setState({ status: "error", url: trimmedUrl, message, errorType });
     }
   };
 
@@ -70,6 +80,7 @@ export function AddFromUrlPage() {
         status: "error",
         url: state.url,
         message,
+        errorType: "generic",
       });
     }
   };
@@ -131,7 +142,11 @@ export function AddFromUrlPage() {
 
       {/* Error State */}
       {state.status === "error" && (
-        <ErrorMessage message={state.message} onRetry={handleRetry} />
+        <ErrorMessage
+          message={state.message}
+          onRetry={state.errorType === "generic" ? handleRetry : undefined}
+          errorType={state.errorType}
+        />
       )}
 
       {/* Success States */}

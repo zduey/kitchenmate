@@ -59,7 +59,42 @@ export interface ConvertRequest {
 }
 
 export interface ApiError {
-  detail: string;
+  detail: string | AuthorizationErrorDetail;
+}
+
+export interface AuthorizationErrorDetail {
+  message: string;
+  error_code: "upgrade_required" | "subscription_expired";
+  required_tier: string;
+  feature: string;
+}
+
+export function isAuthorizationError(
+  detail: unknown
+): detail is AuthorizationErrorDetail {
+  return (
+    typeof detail === "object" &&
+    detail !== null &&
+    "error_code" in detail &&
+    ((detail as AuthorizationErrorDetail).error_code === "upgrade_required" ||
+      (detail as AuthorizationErrorDetail).error_code === "subscription_expired")
+  );
+}
+
+/**
+ * Extract error message from ApiError.detail, handling both string and object formats.
+ */
+export function getErrorMessage(
+  detail: string | AuthorizationErrorDetail,
+  fallback: string
+): string {
+  if (typeof detail === "string") {
+    return detail;
+  }
+  if (isAuthorizationError(detail)) {
+    return detail.message;
+  }
+  return fallback;
 }
 
 // =============================================================================

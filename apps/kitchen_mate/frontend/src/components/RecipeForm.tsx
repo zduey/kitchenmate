@@ -1,4 +1,5 @@
 import { useState, FormEvent, useRef, useEffect, ChangeEvent } from "react";
+import { useIsPro } from "../hooks/usePermission";
 
 const ACCEPTED_FILE_TYPES = ".jpg,.jpeg,.png,.gif,.webp,.pdf,.docx,.txt,.md";
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -31,6 +32,7 @@ export function RecipeForm({ onSubmit, onUpload, isLoading }: RecipeFormProps) {
   const [fileError, setFileError] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isPro = useIsPro();
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -117,18 +119,43 @@ export function RecipeForm({ onSubmit, onUpload, isLoading }: RecipeFormProps) {
             <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
               <button
                 type="button"
-                onClick={handleClipWithAi}
-                disabled={!url.trim()}
-                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 rounded-t-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={isPro ? handleClipWithAi : undefined}
+                disabled={!url.trim() || !isPro}
+                className={`w-full px-4 py-2 text-left text-sm rounded-t-lg ${
+                  isPro
+                    ? "text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    : "text-gray-400 cursor-not-allowed"
+                }`}
+                title={isPro ? undefined : "Pro feature - upgrade to unlock"}
               >
-                Clip with AI
+                <span className="flex items-center justify-between">
+                  Clip with AI
+                  {!isPro && (
+                    <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">
+                      Pro
+                    </span>
+                  )}
+                </span>
               </button>
               <button
                 type="button"
-                onClick={handleUploadClick}
-                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 rounded-b-lg border-t border-gray-100"
+                onClick={isPro ? handleUploadClick : undefined}
+                disabled={!isPro}
+                className={`w-full px-4 py-2 text-left text-sm rounded-b-lg border-t border-gray-100 ${
+                  isPro
+                    ? "text-gray-700 hover:bg-gray-100"
+                    : "text-gray-400 cursor-not-allowed"
+                }`}
+                title={isPro ? undefined : "Pro feature - upgrade to unlock"}
               >
-                Upload image or file
+                <span className="flex items-center justify-between">
+                  Upload image or file
+                  {!isPro && (
+                    <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">
+                      Pro
+                    </span>
+                  )}
+                </span>
               </button>
             </div>
           )}

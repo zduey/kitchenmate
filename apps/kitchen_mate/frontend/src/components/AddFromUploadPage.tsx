@@ -1,13 +1,14 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Recipe } from "../types/recipe";
 import { uploadRecipe, ClipError } from "../api/clip";
 import { saveRecipe, RecipeError } from "../api/recipes";
 import { FileDropZone } from "./FileDropZone";
 import { RecipeCard } from "./RecipeCard";
 import { LoadingSpinner } from "./LoadingSpinner";
-import { ErrorMessage } from "./ErrorMessage";
+import { ErrorMessage, ErrorType } from "./ErrorMessage";
 import { useRequireAuth } from "../hooks/useRequireAuth";
+import { useIsPro } from "../hooks/usePermission";
 
 type PageState =
   | { status: "idle" }
@@ -15,11 +16,12 @@ type PageState =
   | { status: "extracted"; filename: string; recipe: Recipe; parsingMethod: string }
   | { status: "saving"; filename: string; recipe: Recipe; parsingMethod: string }
   | { status: "saved"; filename: string; recipe: Recipe; recipeId: string }
-  | { status: "error"; filename: string; message: string };
+  | { status: "error"; filename: string; message: string; errorType: ErrorType };
 
 export function AddFromUploadPage() {
   const [state, setState] = useState<PageState>({ status: "idle" });
   const { isAuthorized } = useRequireAuth();
+  const isPro = useIsPro();
   const navigate = useNavigate();
 
   const handleFileSelect = async (file: File) => {
@@ -34,11 +36,19 @@ export function AddFromUploadPage() {
         parsingMethod: result.parsing_method,
       });
     } catch (error) {
-      const message =
-        error instanceof ClipError
-          ? error.message
-          : "Failed to extract recipe from file";
-      setState({ status: "error", filename: file.name, message });
+      let message = "Failed to extract recipe from file";
+      let errorType: ErrorType = "generic";
+
+      if (error instanceof ClipError) {
+        message = error.message;
+        if (error.isUpgradeRequired) {
+          errorType = "upgrade_required";
+        } else if (error.isSubscriptionExpired) {
+          errorType = "subscription_expired";
+        }
+      }
+
+      setState({ status: "error", filename: file.name, message, errorType });
     }
   };
 
@@ -73,6 +83,7 @@ export function AddFromUploadPage() {
         status: "error",
         filename: state.filename,
         message,
+        errorType: "generic",
       });
     }
   };
@@ -88,6 +99,54 @@ export function AddFromUploadPage() {
   };
 
   const isLoading = state.status === "extracting" || state.status === "saving";
+
+  // Show upgrade prompt for non-Pro users
+  if (!isPro) {
+    return (
+      <div>
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold text-brown-dark mb-2">
+            Add Recipe from File
+          </h2>
+          <p className="text-brown-medium">
+            Upload an image or document containing a recipe.
+          </p>
+        </div>
+
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-6 text-center">
+          <div className="flex justify-center mb-3">
+            <span className="inline-flex items-center justify-center w-12 h-12 bg-amber-100 rounded-full">
+              <svg
+                className="w-6 h-6 text-amber-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                />
+              </svg>
+            </span>
+          </div>
+          <h3 className="text-lg font-semibold text-amber-800 mb-2">
+            Pro Feature
+          </h3>
+          <p className="text-amber-700 mb-4">
+            File upload requires a Pro subscription to use AI-powered recipe extraction.
+          </p>
+          <Link
+            to="/add/url"
+            className="inline-block px-4 py-2 text-sm font-medium text-amber-700 border border-amber-300 rounded-lg hover:bg-amber-100 transition-colors"
+          >
+            Extract from URL instead
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -118,7 +177,7 @@ export function AddFromUploadPage() {
 
       {/* Error State */}
       {state.status === "error" && (
-        <ErrorMessage message={state.message} />
+        <ErrorMessage message={state.message} errorType={state.errorType} />
       )}
 
       {/* Success States */}

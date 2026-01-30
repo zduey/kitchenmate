@@ -6,6 +6,7 @@ import {
   SaveRecipeResponse,
   UpdateUserRecipeRequest,
   UserRecipe,
+  getErrorMessage,
 } from "../types/recipe";
 
 const API_BASE = "/api";
@@ -62,7 +63,8 @@ export async function listUserRecipes(
 
   if (!response.ok) {
     const error: ApiError = await response.json();
-    throw new RecipeError(error.detail, response.status);
+    const message = getErrorMessage(error.detail, "Failed to list recipes");
+    throw new RecipeError(message, response.status);
   }
 
   return response.json();
@@ -79,7 +81,8 @@ export async function getUserRecipe(recipeId: string): Promise<UserRecipe> {
 
   if (!response.ok) {
     const error: ApiError = await response.json();
-    throw new RecipeError(error.detail, response.status);
+    const message = getErrorMessage(error.detail, "Failed to get recipe");
+    throw new RecipeError(message, response.status);
   }
 
   return response.json();
@@ -128,7 +131,8 @@ export async function saveRecipe(params: SaveRecipeParams): Promise<SaveRecipeRe
 
   if (!response.ok) {
     const error: ApiError = await response.json();
-    throw new RecipeError(error.detail, response.status);
+    const message = getErrorMessage(error.detail, "Failed to save recipe");
+    throw new RecipeError(message, response.status);
   }
 
   return response.json();
@@ -152,7 +156,8 @@ export async function updateUserRecipe(
 
   if (!response.ok) {
     const error: ApiError = await response.json();
-    throw new RecipeError(error.detail, response.status);
+    const message = getErrorMessage(error.detail, "Failed to update recipe");
+    throw new RecipeError(message, response.status);
   }
 
   return response.json();
@@ -169,6 +174,7 @@ export async function deleteUserRecipe(recipeId: string): Promise<void> {
 
   if (!response.ok) {
     const error: ApiError = await response.json();
-    throw new RecipeError(error.detail, response.status);
+    const message = getErrorMessage(error.detail, "Failed to delete recipe");
+    throw new RecipeError(message, response.status);
   }
 }
