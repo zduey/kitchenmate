@@ -23,6 +23,11 @@ kitchenmate/
 │       │   ├── main.py              # FastAPI app entry point
 │       │   ├── config.py            # Settings management
 │       │   ├── auth.py              # Authentication utilities
+│       │   ├── authorization/       # Tier-based authorization
+│       │   │   ├── __init__.py
+│       │   │   ├── permissions.py   # Tier/Permission enums
+│       │   │   ├── dependencies.py  # FastAPI dependencies
+│       │   │   └── exceptions.py    # Authorization errors
 │       │   ├── db.py                # Database operations
 │       │   ├── extraction.py        # Shared recipe extraction logic
 │       │   ├── schemas.py           # Request/response models
@@ -228,6 +233,66 @@ function SaveButton({ recipe }: { recipe: Recipe }) {
 | `auth.py` | `DEFAULT_USER`, `get_user()` dependency |
 | `types/auth.ts` | `DEFAULT_USER` constant |
 | `hooks/useRequireAuth.ts` | Frontend hook for user-gated features |
+
+### Tier-Based Authorization
+
+The application uses a simple tier-based permission system for feature access control.
+
+#### User Tiers
+
+| Tier | Access | How to Get |
+|------|--------|------------|
+| Free | Basic clipping (recipe-scrapers only), recipe management | Default for multi-tenant users |
+| Pro | All Free features + LLM fallback, file uploads | Single-tenant mode, or user ID in `PRO_USER_IDS` |
+
+#### Permissions
+
+| Permission | Free | Pro | Description |
+|------------|------|-----|-------------|
+| `clip_basic` | ✓ | ✓ | Clip recipes using recipe-scrapers |
+| `clip_ai` | ✗ | ✓ | Use LLM fallback when recipe-scrapers fails |
+| `clip_upload` | ✗ | ✓ | Extract recipes from uploaded images/documents |
+| `recipe_*` | ✓ | ✓ | Save, create, edit, list, delete recipes |
+
+#### Backend Usage
+
+**Protect entire route with `require_permission`:**
+
+```python
+from kitchen_mate.authorization import Permission, require_permission
+
+@router.post("/clip/upload")
+async def clip_upload(
+    file: UploadFile,
+    user: User = Depends(require_permission(Permission.CLIP_UPLOAD)),
+):
+    # Only Pro users reach here
+    ...
+```
+
+**Conditional feature check with `check_permission_soft`:**
+
+```python
+from kitchen_mate.authorization import Permission, TierInfo, check_permission_soft, get_tier_info
+
+@router.post("/clip")
+async def clip(
+    request: ClipRequest,
+    tier_info: TierInfo = Depends(get_tier_info),
+):
+    can_use_ai, error_code = check_permission_soft(Permission.CLIP_AI, tier_info)
+    # Use can_use_ai to conditionally enable LLM fallback
+    ...
+```
+
+#### Authorization Key Files
+
+| File | Purpose |
+|------|---------|
+| `authorization/permissions.py` | `Tier`, `Permission` enums, `TIER_PERMISSIONS` dict |
+| `authorization/dependencies.py` | `get_tier_info`, `require_permission`, `check_permission_soft` |
+| `authorization/exceptions.py` | `UpgradeRequiredError`, `SubscriptionExpiredError` |
+| `config.py` | `pro_user_ids` setting |
 
 ### Public API
 
@@ -458,7 +523,7 @@ The application is deployed to [Render](https://render.com) using Docker.
 
 **Core:**
 - `ANTHROPIC_API_KEY`: API key for LLM-based recipe extraction
-- `LLM_ALLOWED_IPS`: Comma-separated IPs/CIDR ranges allowed to use LLM fallback
+- `PRO_USER_IDS`: Comma-separated Supabase user IDs with Pro tier access (LLM features)
 - `CORS_ORIGINS`: Allowed CORS origins (comma-separated)
 
 **Multi-Tenant Mode (Supabase):**

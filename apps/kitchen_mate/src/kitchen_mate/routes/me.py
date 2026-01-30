@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from recipe_clipper.exceptions import (
     LLMError,
@@ -15,6 +16,13 @@ from recipe_clipper.exceptions import (
 )
 
 from kitchen_mate.auth import User, get_user
+from kitchen_mate.authorization import (
+    Permission,
+    TierInfo,
+    UpgradeRequiredError,
+    check_permission_soft,
+    get_tier_info,
+)
 from kitchen_mate.config import Settings, get_settings
 from kitchen_mate.database import (
     delete_user_recipe,
@@ -25,13 +33,15 @@ from kitchen_mate.database import (
     store_recipe,
     update_user_recipe,
 )
-from kitchen_mate.extraction import LLMNotAllowedError, extract_recipe, get_client_ip
+from kitchen_mate.extraction import LLMNotAllowedError, extract_recipe
 from kitchen_mate.schemas import (
     GetUserRecipeResponse,
     ListUserRecipesResponse,
+    Parser,
     RecipeLineage,
     SaveRecipeRequest,
     SaveRecipeResponse,
+    SourceType,
     UpdateUserRecipeRequest,
     UpdateUserRecipeResponse,
     UserRecipeSummaryResponse,
@@ -44,17 +54,102 @@ router = APIRouter()
 @router.post("/me/recipes", status_code=201)
 async def save_recipe(
     save_request: SaveRecipeRequest,
-    request: Request,
     user: Annotated[User, Depends(get_user)],
     settings: Annotated[Settings, Depends(get_settings)],
+    tier_info: Annotated[TierInfo, Depends(get_tier_info)],
 ) -> SaveRecipeResponse:
-    """Save a recipe from a URL to the current user's collection.
+    """Save a recipe to the current user's collection.
 
-    If the recipe has already been parsed, it will be reused.
+    Supports two source types:
+    - web: Provide URL, recipe will be fetched/parsed (or reused from cache)
+    - upload: Provide recipe data directly (from /clip/upload preview)
+
+    If the recipe has already been parsed/saved, it will be reused.
     If the user has already saved this recipe, the existing entry is returned.
     """
+    if save_request.source_type in (SourceType.upload, SourceType.manual):
+        return await _save_direct_recipe(save_request, user)
+    else:
+        return await _save_web_recipe(save_request, user, settings, tier_info)
+
+
+async def _save_direct_recipe(
+    save_request: SaveRecipeRequest,
+    user: User,
+) -> SaveRecipeResponse:
+    """Save a recipe from upload or manual entry."""
+    # Generate source identifier from recipe content hash
+    recipe_json = save_request.recipe.model_dump_json()
+    recipe_hash = hashlib.sha256(recipe_json.encode()).hexdigest()[:16]
+    source_prefix = save_request.source_type.value
+    source_url = f"{source_prefix}://{recipe_hash}"
+
+    # Determine parsing method
+    default_method = (
+        "manual" if save_request.source_type == SourceType.manual else Parser.llm_image.value
+    )
+    parsing_method = save_request.parsing_method or default_method
+
+    # Check if this exact recipe was already saved (by hash)
+    cached = await get_cached_recipe(source_url)
+
+    if cached:
+        # Recipe already exists - just save to user's collection
+        user_recipe, is_new = await save_user_recipe(
+            user_id=user.id,
+            recipe_id=cached.id,
+            recipe_data=cached.recipe,
+            tags=save_request.tags,
+            notes=save_request.notes,
+        )
+        return SaveRecipeResponse(
+            user_recipe_id=user_recipe.id,
+            recipe_id=cached.id,
+            source_url=cached.source_url,
+            parsing_method=cached.parsing_method,
+            created_at=user_recipe.created_at.isoformat(),
+            is_new=is_new,
+        )
+
+    # Store the recipe
+    cached = await store_recipe(
+        url=source_url,
+        recipe=save_request.recipe,
+        content_hash=recipe_hash,
+        parsed_with=Parser(parsing_method),
+    )
+
+    # Save to user's collection
+    user_recipe, is_new = await save_user_recipe(
+        user_id=user.id,
+        recipe_id=cached.id,
+        recipe_data=save_request.recipe,
+        tags=save_request.tags,
+        notes=save_request.notes,
+    )
+
+    return SaveRecipeResponse(
+        user_recipe_id=user_recipe.id,
+        recipe_id=cached.id,
+        source_url=source_url,
+        parsing_method=parsing_method,
+        created_at=user_recipe.created_at.isoformat(),
+        is_new=is_new,
+    )
+
+
+async def _save_web_recipe(
+    save_request: SaveRecipeRequest,
+    user: User,
+    settings: Settings,
+    tier_info: TierInfo,
+) -> SaveRecipeResponse:
+    """Save a recipe from a web URL."""
     url = str(save_request.url)
-    client_ip = get_client_ip(request)
+
+    # Check if user can use AI features
+    # (authorization is only enforced if LLM fallback is actually needed)
+    can_use_ai, _ = check_permission_soft(Permission.CLIP_AI, tier_info)
 
     try:
         # Check if recipe is already cached
@@ -84,8 +179,7 @@ async def save_recipe(
             timeout=save_request.timeout,
             use_llm_fallback=save_request.use_llm_fallback,
             api_key=settings.anthropic_api_key,
-            client_ip=client_ip,
-            allowed_ips=settings.llm_allowed_ips,
+            llm_permitted=can_use_ai,
         )
 
         # Store the parsed recipe
@@ -114,7 +208,7 @@ async def save_recipe(
     except NetworkError as error:
         raise HTTPException(status_code=502, detail=f"Failed to fetch URL: {error}") from error
     except LLMNotAllowedError as error:
-        raise HTTPException(status_code=403, detail=str(error)) from error
+        raise UpgradeRequiredError(feature=Permission.CLIP_AI.value) from error
     except (RecipeParsingError, LLMError) as error:
         raise HTTPException(status_code=422, detail=f"Failed to parse recipe: {error}") from error
     except RecipeClipperError as error:

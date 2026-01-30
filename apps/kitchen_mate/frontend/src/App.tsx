@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react";
-import { BrowserRouter, Routes, Route, Link, useSearchParams } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from "react-router-dom";
 import { Header } from "./components/Header";
 import { AuthModal } from "./components/AuthModal";
 import { AuthProvider } from "./contexts/AuthContext";
 import { RecipeList } from "./components/RecipeList";
-import { ClipRecipePage } from "./components/ClipRecipePage";
+import { AddFromUrlPage } from "./components/AddFromUrlPage";
+import { AddFromUploadPage } from "./components/AddFromUploadPage";
+import { AddManualPage } from "./components/AddManualPage";
 import { SavedRecipeView } from "./components/SavedRecipeView";
+import { AddRecipeDropdown } from "./components/AddRecipeDropdown";
 import { ViewModeToggle } from "./components/ViewModeToggle";
 import { useRequireAuth } from "./hooks/useRequireAuth";
 import { formatTagForDisplay } from "./utils/tags";
@@ -122,9 +125,9 @@ function HomePage() {
     setSearchParams(newParams);
   };
 
-  // Unauthenticated users see the clip page directly
+  // Unauthenticated users see the URL clip page directly
   if (!isAuthorized) {
-    return <ClipRecipePage />;
+    return <AddFromUrlPage />;
   }
 
   // Get subtitle text
@@ -148,26 +151,8 @@ function HomePage() {
         </div>
         <div className="flex items-center gap-6 shrink-0">
           <ViewModeToggle mode={viewMode} onChange={handleViewChange} />
-          <Link
-            to="/clip"
-            className="w-10 h-10 flex items-center justify-center bg-coral text-white rounded-full hover:bg-coral-dark transition-colors"
-            title="Add a recipe"
-          >
-            <svg
-              className="h-6 w-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-          </Link>
         </div>
+        <AddRecipeDropdown variant="plus" />
       </div>
 
       {(tagFilter || searchQuery) && (
@@ -213,8 +198,12 @@ function AppContent() {
         <main className="max-w-5xl mx-auto px-4 py-8">
           <Routes>
             <Route path="/" element={<HomePage />} />
-            <Route path="/clip" element={<ClipRecipePage />} />
+            <Route path="/add/url" element={<AddFromUrlPage />} />
+            <Route path="/add/upload" element={<AddFromUploadPage />} />
+            <Route path="/add/manual" element={<AddManualPage />} />
             <Route path="/recipes/:id" element={<SavedRecipeView />} />
+            {/* Redirect old /clip route to new /add/url */}
+            <Route path="/clip" element={<Navigate to="/add/url" replace />} />
           </Routes>
         </main>
       </div>

@@ -1,10 +1,12 @@
 import {
   ApiError,
   ListUserRecipesResponse,
+  Recipe,
   SaveRecipeRequest,
   SaveRecipeResponse,
   UpdateUserRecipeRequest,
   UserRecipe,
+  getErrorMessage,
 } from "../types/recipe";
 
 const API_BASE = "/api";
@@ -61,7 +63,8 @@ export async function listUserRecipes(
 
   if (!response.ok) {
     const error: ApiError = await response.json();
-    throw new RecipeError(error.detail, response.status);
+    const message = getErrorMessage(error.detail, "Failed to list recipes");
+    throw new RecipeError(message, response.status);
   }
 
   return response.json();
@@ -78,25 +81,44 @@ export async function getUserRecipe(recipeId: string): Promise<UserRecipe> {
 
   if (!response.ok) {
     const error: ApiError = await response.json();
-    throw new RecipeError(error.detail, response.status);
+    const message = getErrorMessage(error.detail, "Failed to get recipe");
+    throw new RecipeError(message, response.status);
   }
 
   return response.json();
 }
 
+export type SaveRecipeParams =
+  | { url: string; tags?: string[]; notes?: string }
+  | { sourceType: "upload"; recipe: Recipe; parsingMethod: string; tags?: string[]; notes?: string }
+  | { sourceType: "manual"; recipe: Recipe; parsingMethod: "manual"; tags?: string[]; notes?: string };
+
 /**
- * Save a recipe from URL to user's collection.
+ * Save a recipe to user's collection.
+ * Supports both URL-based and upload-based saving.
  */
-export async function saveRecipe(
-  url: string,
-  options: { tags?: string[]; notes?: string } = {}
-): Promise<SaveRecipeResponse> {
-  const request: SaveRecipeRequest = {
-    url,
-    use_llm_fallback: true,
-    tags: options.tags,
-    notes: options.notes,
-  };
+export async function saveRecipe(params: SaveRecipeParams): Promise<SaveRecipeResponse> {
+  let request: SaveRecipeRequest;
+
+  if ("url" in params) {
+    // URL-based save
+    request = {
+      source_type: "web",
+      url: params.url,
+      use_llm_fallback: true,
+      tags: params.tags,
+      notes: params.notes,
+    };
+  } else {
+    // Upload or manual save
+    request = {
+      source_type: params.sourceType,
+      recipe: params.recipe,
+      parsing_method: params.parsingMethod,
+      tags: params.tags,
+      notes: params.notes,
+    };
+  }
 
   const response = await fetch(`${API_BASE}/me/recipes`, {
     method: "POST",
@@ -109,7 +131,8 @@ export async function saveRecipe(
 
   if (!response.ok) {
     const error: ApiError = await response.json();
-    throw new RecipeError(error.detail, response.status);
+    const message = getErrorMessage(error.detail, "Failed to save recipe");
+    throw new RecipeError(message, response.status);
   }
 
   return response.json();
@@ -133,7 +156,8 @@ export async function updateUserRecipe(
 
   if (!response.ok) {
     const error: ApiError = await response.json();
-    throw new RecipeError(error.detail, response.status);
+    const message = getErrorMessage(error.detail, "Failed to update recipe");
+    throw new RecipeError(message, response.status);
   }
 
   return response.json();
@@ -150,6 +174,7 @@ export async function deleteUserRecipe(recipeId: string): Promise<void> {
 
   if (!response.ok) {
     const error: ApiError = await response.json();
-    throw new RecipeError(error.detail, response.status);
+    const message = getErrorMessage(error.detail, "Failed to delete recipe");
+    throw new RecipeError(message, response.status);
   }
 }

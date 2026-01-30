@@ -1,100 +1,73 @@
-import { useState } from "react";
+import { useState, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { Recipe } from "../types/recipe";
-import { clipRecipe, uploadRecipe, ClipError } from "../api/clip";
+import { clipRecipe, ClipError } from "../api/clip";
 import { saveRecipe, RecipeError } from "../api/recipes";
-import { RecipeForm } from "./RecipeForm";
 import { RecipeCard } from "./RecipeCard";
 import { LoadingSpinner } from "./LoadingSpinner";
 import { ErrorMessage } from "./ErrorMessage";
 import { useRequireAuth } from "../hooks/useRequireAuth";
 
-type RecipeSource =
-  | { type: "url"; url: string; forceLlm: boolean }
-  | { type: "upload"; filename: string; parsingMethod: string };
+import { ErrorType } from "./ErrorMessage";
 
-type ClipState =
+type PageState =
   | { status: "idle" }
-  | { status: "loading"; source: RecipeSource }
-  | { status: "success"; source: RecipeSource; recipe: Recipe }
-  | { status: "saving"; source: RecipeSource; recipe: Recipe }
-  | { status: "saved"; source: RecipeSource; recipe: Recipe; recipeId: string }
-  | { status: "error"; source: RecipeSource; message: string };
+  | { status: "extracting"; url: string }
+  | { status: "extracted"; url: string; recipe: Recipe }
+  | { status: "saving"; url: string; recipe: Recipe }
+  | { status: "saved"; url: string; recipe: Recipe; recipeId: string }
+  | { status: "error"; url: string; message: string; errorType: ErrorType };
 
-export function ClipRecipePage() {
-  const [state, setState] = useState<ClipState>({ status: "idle" });
+export function AddFromUrlPage() {
+  const [state, setState] = useState<PageState>({ status: "idle" });
+  const [url, setUrl] = useState("");
   const { isAuthorized } = useRequireAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (url: string, forceLlm: boolean) => {
-    const source: RecipeSource = { type: "url", url, forceLlm };
-    setState({ status: "loading", source });
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    const trimmedUrl = url.trim();
+    if (!trimmedUrl) return;
+
+    setState({ status: "extracting", url: trimmedUrl });
 
     try {
-      const recipe = await clipRecipe(url, forceLlm);
-      setState({ status: "success", source, recipe });
+      const recipe = await clipRecipe(trimmedUrl);
+      setState({ status: "extracted", url: trimmedUrl, recipe });
     } catch (error) {
-      const message =
-        error instanceof ClipError
-          ? error.message
-          : "An unexpected error occurred";
-      setState({ status: "error", source, message });
-    }
-  };
+      let message = "An unexpected error occurred";
+      let errorType: ErrorType = "generic";
 
-  const handleUpload = async (file: File) => {
-    const source: RecipeSource = {
-      type: "upload",
-      filename: file.name,
-      parsingMethod: "",
-    };
-    setState({ status: "loading", source });
+      if (error instanceof ClipError) {
+        message = error.message;
+        if (error.isUpgradeRequired) {
+          errorType = "upgrade_required";
+        } else if (error.isSubscriptionExpired) {
+          errorType = "subscription_expired";
+        }
+      }
 
-    try {
-      const result = await uploadRecipe(file);
-      const finalSource: RecipeSource = {
-        type: "upload",
-        filename: file.name,
-        parsingMethod: result.parsing_method,
-      };
-      setState({ status: "success", source: finalSource, recipe: result.recipe });
-    } catch (error) {
-      const message =
-        error instanceof ClipError
-          ? error.message
-          : "An unexpected error occurred";
-      setState({ status: "error", source, message });
+      setState({ status: "error", url: trimmedUrl, message, errorType });
     }
   };
 
   const handleRetry = () => {
     if (state.status === "error") {
-      if (state.source.type === "url") {
-        handleSubmit(state.source.url, state.source.forceLlm);
-      }
-      // For uploads, user needs to re-select the file
+      setUrl(state.url);
+      setState({ status: "idle" });
     }
   };
 
   const handleSave = async () => {
-    if (state.status !== "success") return;
+    if (state.status !== "extracted") return;
 
-    setState({ status: "saving", source: state.source, recipe: state.recipe });
+    setState({ status: "saving", url: state.url, recipe: state.recipe });
 
     try {
-      let result;
-      if (state.source.type === "url") {
-        result = await saveRecipe({ url: state.source.url });
-      } else {
-        result = await saveRecipe({
-          sourceType: "upload",
-          recipe: state.recipe,
-          parsingMethod: state.source.parsingMethod,
-        });
-      }
+      const result = await saveRecipe({ url: state.url });
       setState({
         status: "saved",
-        source: state.source,
+        url: state.url,
         recipe: state.recipe,
         recipeId: result.user_recipe_id,
       });
@@ -105,8 +78,9 @@ export function ClipRecipePage() {
           : "Failed to save recipe";
       setState({
         status: "error",
-        source: state.source,
+        url: state.url,
         message,
+        errorType: "generic",
       });
     }
   };
@@ -117,60 +91,70 @@ export function ClipRecipePage() {
     }
   };
 
-  const handleClipAnother = () => {
+  const handleAddAnother = () => {
+    setUrl("");
     setState({ status: "idle" });
   };
 
-  const getLoadingMessage = () => {
-    if (state.status !== "loading") return "";
-    if (state.source.type === "upload") {
-      return `Extracting recipe from ${state.source.filename}...`;
-    }
-    return "Extracting recipe...";
-  };
-
-  const canRetry =
-    state.status === "error" && state.source.type === "url";
+  const isLoading = state.status === "extracting" || state.status === "saving";
 
   return (
     <div>
       <div className="mb-6">
         <h2 className="text-xl font-semibold text-brown-dark mb-2">
-          Clip a Recipe
+          Add Recipe from URL
         </h2>
         <p className="text-brown-medium">
-          Paste a URL from any recipe website, or upload an image or document.
+          Paste a link to any recipe webpage to extract it.
         </p>
       </div>
 
-      <div className="mb-8">
-        <RecipeForm
-          onSubmit={handleSubmit}
-          onUpload={handleUpload}
-          isLoading={state.status === "loading" || state.status === "saving"}
-        />
-      </div>
+      {/* URL Input Form */}
+      <form onSubmit={handleSubmit} className="mb-8">
+        <div className="flex gap-3">
+          <input
+            type="url"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://example.com/recipe..."
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-coral focus:border-transparent"
+            disabled={isLoading}
+            required
+          />
+          <button
+            type="submit"
+            disabled={isLoading || !url.trim()}
+            className="px-6 py-2 bg-coral text-white font-medium rounded-lg hover:bg-coral-dark focus:outline-none focus:ring-2 focus:ring-coral focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {state.status === "extracting" ? "Extracting..." : "Extract Recipe"}
+          </button>
+        </div>
+      </form>
 
-      {state.status === "loading" && (
-        <LoadingSpinner message={getLoadingMessage()} />
+      {/* Loading States */}
+      {state.status === "extracting" && (
+        <LoadingSpinner message="Extracting recipe..." />
       )}
 
       {state.status === "saving" && (
         <LoadingSpinner message="Saving to your collection..." />
       )}
 
+      {/* Error State */}
       {state.status === "error" && (
         <ErrorMessage
           message={state.message}
-          onRetry={canRetry ? handleRetry : undefined}
+          onRetry={state.errorType === "generic" ? handleRetry : undefined}
+          errorType={state.errorType}
         />
       )}
 
-      {(state.status === "success" || state.status === "saved") && (
+      {/* Success States */}
+      {(state.status === "extracted" || state.status === "saved") && (
         <div>
           {/* Status message and actions */}
           <div className="mb-6 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
-            {state.status === "success" && (
+            {state.status === "extracted" && (
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <p className="text-brown-dark font-medium">Recipe extracted!</p>
@@ -190,10 +174,10 @@ export function ClipRecipePage() {
                     </button>
                   )}
                   <button
-                    onClick={handleClipAnother}
+                    onClick={handleAddAnother}
                     className="px-4 py-2 text-sm border border-gray-300 text-brown-medium rounded-lg hover:bg-gray-50"
                   >
-                    Clip Another
+                    Add Another
                   </button>
                 </div>
               </div>
@@ -225,7 +209,7 @@ export function ClipRecipePage() {
                     View Recipe
                   </button>
                   <button
-                    onClick={handleClipAnother}
+                    onClick={handleAddAnother}
                     className="px-4 py-2 border border-gray-300 text-brown-medium rounded-lg hover:bg-gray-50"
                   >
                     Add Another
