@@ -251,3 +251,68 @@ def test_clip_recipe_no_llm_fallback_works_for_free_tier(
     assert response.status_code == 200
     assert response.json()["recipe"]["title"] == "Test Recipe"
     assert response.json()["cached"] is False
+
+
+def test_clip_recipe_unauthenticated_basic_clipping_works(
+    client: TestClient, settings_free_tier: None
+) -> None:
+    """Test that unauthenticated users can use basic clipping in multi-tenant mode."""
+    mock_recipe = Recipe(
+        title="Test Recipe",
+        ingredients=[],
+        instructions=["Step 1"],
+        source_url="https://example.com/recipe",
+    )
+    mock_response = MagicMock()
+    mock_response.content = "<html>test</html>"
+
+    # No auth token - unauthenticated request
+    with patch("kitchen_mate.extraction.fetch_url", return_value=mock_response):
+        with patch("kitchen_mate.extraction.parse_with_recipe_scrapers", return_value=mock_recipe):
+            response = client.post(
+                "/api/clip",
+                json={"url": "https://example.com/recipe"},
+            )
+
+    assert response.status_code == 200
+    assert response.json()["recipe"]["title"] == "Test Recipe"
+
+
+def test_clip_recipe_unauthenticated_llm_fallback_blocked(
+    client: TestClient, settings_free_tier: None
+) -> None:
+    """Test that unauthenticated users cannot use LLM fallback in multi-tenant mode."""
+    mock_response = MagicMock()
+    mock_response.content = "<html>test</html>"
+
+    # No auth token - unauthenticated request
+    with patch("kitchen_mate.extraction.fetch_url", return_value=mock_response):
+        with patch(
+            "kitchen_mate.extraction.parse_with_recipe_scrapers",
+            side_effect=RecipeParsingError("Not supported"),
+        ):
+            response = client.post(
+                "/api/clip",
+                json={"url": "https://example.com/recipe", "use_llm_fallback": True},
+            )
+
+    assert response.status_code == 403
+    detail = response.json()["detail"]
+    assert detail["error_code"] == "upgrade_required"
+    assert detail["feature"] == "clip_ai"
+
+
+def test_clip_recipe_unauthenticated_force_llm_blocked(
+    client: TestClient, settings_free_tier: None
+) -> None:
+    """Test that unauthenticated users cannot force LLM in multi-tenant mode."""
+    # No auth token - unauthenticated request
+    response = client.post(
+        "/api/clip",
+        json={"url": "https://example.com/recipe", "force_llm": True},
+    )
+
+    assert response.status_code == 403
+    detail = response.json()["detail"]
+    assert detail["error_code"] == "upgrade_required"
+    assert detail["feature"] == "clip_ai"

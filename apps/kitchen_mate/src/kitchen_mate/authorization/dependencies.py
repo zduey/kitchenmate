@@ -7,7 +7,7 @@ from typing import Annotated
 
 from fastapi import Depends
 
-from kitchen_mate.auth import User, get_user
+from kitchen_mate.auth import User, get_current_user_optional, get_user
 from kitchen_mate.authorization.exceptions import (
     SubscriptionExpiredError,
     UpgradeRequiredError,
@@ -26,22 +26,49 @@ class TierInfo:
 
 
 async def get_tier_info(
-    user: Annotated[User, Depends(get_user)],
+    user: Annotated[User | None, Depends(get_current_user_optional)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> TierInfo:
-    """Determine user's tier.
+    """Determine user's tier for public routes.
+
+    This dependency does NOT require authentication. Use it for routes that
+    should be accessible to everyone but have tier-gated features (like /clip).
 
     Priority:
     1. Single-tenant mode -> Pro
-    2. User ID in PRO_USER_IDS -> Pro
-    3. Default -> Free
+    2. Authenticated user in PRO_USER_IDS -> Pro
+    3. Authenticated user not in PRO_USER_IDS -> Free
+    4. Unauthenticated user -> Free
+
+    Args:
+        user: The authenticated user (or None if unauthenticated)
+        settings: Application settings
+
+    Returns:
+        TierInfo with the user's tier and expiration status
+    """
+    if settings.is_single_tenant:
+        return TierInfo(tier=Tier.PRO)
+
+    # Unauthenticated users get FREE tier
+    if user is None:
+        return TierInfo(tier=Tier.FREE)
+
+    if user.id in settings.pro_user_ids:
+        return TierInfo(tier=Tier.PRO)
+
+    return TierInfo(tier=Tier.FREE)
+
+
+def _compute_tier(user: User, settings: Settings) -> TierInfo:
+    """Compute tier info for an authenticated user.
 
     Args:
         user: The authenticated user
         settings: Application settings
 
     Returns:
-        TierInfo with the user's tier and expiration status
+        TierInfo with the user's tier
     """
     if settings.is_single_tenant:
         return TierInfo(tier=Tier.PRO)
@@ -54,6 +81,9 @@ async def get_tier_info(
 
 def require_permission(permission: Permission):
     """Dependency factory that ensures user has the required permission.
+
+    This dependency REQUIRES authentication. Use it for routes that need
+    both authentication and specific permissions (like /clip/upload).
 
     Usage:
         @router.post("/clip/upload")
@@ -70,9 +100,11 @@ def require_permission(permission: Permission):
     """
 
     async def check_permission(
-        tier_info: Annotated[TierInfo, Depends(get_tier_info)],
         user: Annotated[User, Depends(get_user)],
+        settings: Annotated[Settings, Depends(get_settings)],
     ) -> User:
+        tier_info = _compute_tier(user, settings)
+
         if has_permission(tier_info.tier, permission):
             return user
 

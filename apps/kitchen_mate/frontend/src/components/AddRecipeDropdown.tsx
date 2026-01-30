@@ -7,15 +7,15 @@ interface AddRecipeDropdownProps {
 }
 
 const menuItems = [
-  { label: "From URL", path: "/add/url", description: "Extract from a webpage", requiresAuth: false },
-  { label: "Upload File", path: "/add/upload", description: "From image or document", requiresAuth: true },
-  { label: "Enter Manually", path: "/add/manual", description: "Type it yourself", requiresAuth: true },
+  { label: "From URL", path: "/add/url", description: "Extract from a webpage", requiresAuth: false, requiresPro: false },
+  { label: "Upload File", path: "/add/upload", description: "From image or document", requiresAuth: true, requiresPro: true },
+  { label: "Enter Manually", path: "/add/manual", description: "Type it yourself", requiresAuth: true, requiresPro: false },
 ];
 
 export function AddRecipeDropdown({ variant = "button" }: AddRecipeDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { isAuthorized } = useRequireAuth();
+  const { isAuthorized, isPro } = useRequireAuth();
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -61,17 +61,30 @@ export function AddRecipeDropdown({ variant = "button" }: AddRecipeDropdownProps
           className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50 py-1"
         >
           {menuItems.map((item, index) => {
-            const isDisabled = item.requiresAuth && !isAuthorized;
+            const needsAuth = item.requiresAuth && !isAuthorized;
+            const needsUpgrade = item.requiresPro && !isPro;
+            const isDisabled = needsAuth || needsUpgrade;
             const borderClass = index !== menuItems.length - 1 ? "border-b border-gray-100" : "";
 
             if (isDisabled) {
+              const title = needsUpgrade
+                ? "Pro feature - upgrade to unlock"
+                : "Sign in to use this feature";
+
               return (
                 <div
                   key={item.path}
                   className={`block px-4 py-3 cursor-not-allowed ${borderClass}`}
-                  title="Sign in to use this feature"
+                  title={title}
                 >
-                  <span className="block text-sm font-medium text-gray-400">{item.label}</span>
+                  <span className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-400">{item.label}</span>
+                    {needsUpgrade && (
+                      <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">
+                        Pro
+                      </span>
+                    )}
+                  </span>
                   <span className="block text-xs text-gray-400">{item.description}</span>
                 </div>
               );

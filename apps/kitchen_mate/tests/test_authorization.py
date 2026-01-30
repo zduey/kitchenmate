@@ -112,7 +112,7 @@ class TestGetTierInfo:
         from kitchen_mate.authorization.dependencies import get_tier_info
         from kitchen_mate.config import Settings
 
-        settings = Settings(supabase_jwt_secret=None, supabase_url=None)
+        settings = Settings(_env_file=None, supabase_jwt_secret=None, supabase_url=None)
         assert settings.is_single_tenant
 
         tier_info = await get_tier_info(user=DEFAULT_USER, settings=settings)
@@ -128,6 +128,7 @@ class TestGetTierInfo:
         from kitchen_mate.config import Settings
 
         settings = Settings(
+            _env_file=None,
             supabase_jwt_secret="test-secret-key-at-least-32-characters-long",
             pro_user_ids={"pro-user-123"},
         )
@@ -146,6 +147,7 @@ class TestGetTierInfo:
         from kitchen_mate.config import Settings
 
         settings = Settings(
+            _env_file=None,
             supabase_jwt_secret="test-secret-key-at-least-32-characters-long",
             pro_user_ids={"other-user"},
         )

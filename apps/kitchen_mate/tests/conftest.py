@@ -21,8 +21,10 @@ def client() -> Generator[TestClient, None, None]:
     Default client runs in single-tenant mode (pro tier by default).
     """
     # Disable caching and Supabase auth for tests by default
-    # (explicit None overrides .env file values)
-    test_settings = Settings(cache_enabled=False, supabase_jwt_secret=None, supabase_url=None)
+    # _env_file=None prevents loading from .env file
+    test_settings = Settings(
+        _env_file=None, cache_enabled=False, supabase_jwt_secret=None, supabase_url=None
+    )
     app.dependency_overrides[get_settings] = lambda: test_settings
     with TestClient(app) as test_client:
         yield test_client
@@ -33,7 +35,7 @@ def client() -> Generator[TestClient, None, None]:
 def settings_with_api_key(client: TestClient) -> Generator[None, None, None]:
     """Override settings to include an API key (single-tenant, pro tier)."""
     test_settings = Settings(
-        anthropic_api_key="test-api-key", cache_enabled=False, supabase_url=None
+        _env_file=None, anthropic_api_key="test-api-key", cache_enabled=False, supabase_url=None
     )
     app.dependency_overrides[get_settings] = lambda: test_settings
     yield
@@ -43,7 +45,9 @@ def settings_with_api_key(client: TestClient) -> Generator[None, None, None]:
 @pytest.fixture
 def settings_without_api_key(client: TestClient) -> Generator[None, None, None]:
     """Override settings to have no API key."""
-    test_settings = Settings(anthropic_api_key=None, cache_enabled=False, supabase_url=None)
+    test_settings = Settings(
+        _env_file=None, anthropic_api_key=None, cache_enabled=False, supabase_url=None
+    )
     app.dependency_overrides[get_settings] = lambda: test_settings
     yield
     app.dependency_overrides.clear()
@@ -53,6 +57,7 @@ def settings_without_api_key(client: TestClient) -> Generator[None, None, None]:
 def settings_free_tier(client: TestClient) -> Generator[None, None, None]:
     """Override settings for multi-tenant mode with no pro users (free tier)."""
     test_settings = Settings(
+        _env_file=None,
         anthropic_api_key="test-api-key",
         supabase_jwt_secret="test-secret-key-at-least-32-characters-long",
         pro_user_ids=set(),
@@ -67,6 +72,7 @@ def settings_free_tier(client: TestClient) -> Generator[None, None, None]:
 def settings_pro_tier(client: TestClient) -> Generator[None, None, None]:
     """Override settings for multi-tenant mode with test user as pro."""
     test_settings = Settings(
+        _env_file=None,
         anthropic_api_key="test-api-key",
         supabase_jwt_secret="test-secret-key-at-least-32-characters-long",
         pro_user_ids={"test-user-123"},
@@ -81,6 +87,7 @@ def settings_pro_tier(client: TestClient) -> Generator[None, None, None]:
 def settings_with_supabase(client: TestClient) -> Generator[Settings, None, None]:
     """Override settings with Supabase configuration for HS256 JWT verification."""
     test_settings = Settings(
+        _env_file=None,
         supabase_jwt_secret="test-secret-key-at-least-32-characters-long",
         supabase_url=None,
     )

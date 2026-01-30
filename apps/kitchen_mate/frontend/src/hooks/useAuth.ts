@@ -1,12 +1,38 @@
-import { useState, useEffect } from "react";
-import { User as SupabaseUser, AuthError } from "@supabase/supabase-js";
+import { useState, useEffect, useCallback } from "react";
+import { User as SupabaseUser, AuthError, Session } from "@supabase/supabase-js";
 import { supabase, syncSessionToCookie, isAuthEnabled } from "../lib/supabase";
-import { User, AuthState, DEFAULT_USER } from "../types/auth";
+import { User, AuthState, DEFAULT_USER, Tier } from "../types/auth";
 
-function mapSupabaseUser(user: SupabaseUser): User {
+interface AuthMeResponse {
+  id: string;
+  email: string | null;
+  tier: Tier;
+  expires_at: string | null;
+}
+
+async function fetchUserWithTier(supabaseUser: SupabaseUser): Promise<User> {
+  try {
+    const response = await fetch("/api/auth/me", {
+      credentials: "include",
+    });
+
+    if (response.ok) {
+      const data: AuthMeResponse = await response.json();
+      return {
+        id: data.id,
+        email: data.email,
+        tier: data.tier,
+      };
+    }
+  } catch {
+    // Fall back to default tier on error
+  }
+
+  // Fallback: use Supabase user info with free tier
   return {
-    id: user.id,
-    email: user.email ?? null,
+    id: supabaseUser.id,
+    email: supabaseUser.email ?? null,
+    tier: "free",
   };
 }
 
@@ -17,6 +43,16 @@ export function useAuth() {
     loading: isAuthEnabled,
   });
 
+  const handleSession = useCallback(async (session: Session | null) => {
+    if (session?.user) {
+      const user = await fetchUserWithTier(session.user);
+      setState({ user, loading: false });
+    } else {
+      setState({ user: null, loading: false });
+    }
+    syncSessionToCookie(session);
+  }, []);
+
   useEffect(() => {
     // Single-tenant mode: no auth setup needed
     if (!supabase) {
@@ -25,26 +61,18 @@ export function useAuth() {
 
     // Check active session on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setState({
-        user: session?.user ? mapSupabaseUser(session.user) : null,
-        loading: false,
-      });
-      syncSessionToCookie(session);
+      handleSession(session);
     });
 
     // Listen for auth changes (handles magic link redirects)
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setState({
-        user: session?.user ? mapSupabaseUser(session.user) : null,
-        loading: false,
-      });
-      syncSessionToCookie(session);
+      handleSession(session);
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [handleSession]);
 
   const signInWithMagicLink = async (
     email: string

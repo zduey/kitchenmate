@@ -6,17 +6,19 @@ interface RequireAuthResult {
   isAuthorized: boolean;
   /** The current user (DEFAULT_USER in single-tenant, authenticated user in multi-tenant) */
   user: User;
+  /** Whether the user has Pro tier access */
+  isPro: boolean;
 }
 
 /**
  * Hook for user-gated features that require authentication in multi-tenant mode.
  *
- * In single-tenant mode: Always returns authorized with DEFAULT_USER
+ * In single-tenant mode: Always returns authorized with DEFAULT_USER and isPro=true
  * In multi-tenant mode: Returns authorized only if user is authenticated
  *
  * Usage:
  * ```tsx
- * const { isAuthorized, user } = useRequireAuth();
+ * const { isAuthorized, user, isPro } = useRequireAuth();
  *
  * const handleSaveRecipe = () => {
  *   if (!isAuthorized) {
@@ -30,17 +32,20 @@ interface RequireAuthResult {
 export function useRequireAuth(): RequireAuthResult {
   const { user, isAuthEnabled } = useAuthContext();
 
-  // Single-tenant mode: always authorized with default user
+  // Single-tenant mode: always authorized with default user and Pro access
   if (!isAuthEnabled) {
     return {
       isAuthorized: true,
       user: DEFAULT_USER,
+      isPro: true,
     };
   }
 
   // Multi-tenant mode: authorized only if authenticated
+  const currentUser = user ?? DEFAULT_USER;
   return {
     isAuthorized: user !== null,
-    user: user ?? DEFAULT_USER,
+    user: currentUser,
+    isPro: currentUser.tier === "pro",
   };
 }
