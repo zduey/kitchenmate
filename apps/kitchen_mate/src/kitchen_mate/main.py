@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 
 from kitchen_mate.config import get_settings
 from kitchen_mate.database import close_database, init_database
-from kitchen_mate.routes import auth, clip, convert, me
+from kitchen_mate.routes import auth, clip, convert, files, me
 
 
 # Get settings at module load for CORS configuration
@@ -59,6 +59,7 @@ app.include_router(auth.router, prefix="/api")
 app.include_router(clip.router, prefix="/api")
 app.include_router(convert.router, prefix="/api")
 app.include_router(me.router, prefix="/api")
+app.include_router(files.router, prefix="/api")
 
 
 @app.get("/health")

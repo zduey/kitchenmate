@@ -130,6 +130,7 @@ export interface UserRecipeSummary {
   image_url: string | null;
   is_modified: boolean;
   tags: string[] | null;
+  source_file_url?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -154,8 +155,13 @@ export interface UserRecipe {
   tags: string[] | null;
   recipe: Recipe;
   lineage: RecipeLineage;
+  source_file_url?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ThumbnailUploadResponse {
+  image_url: string;
 }
 
 export interface UpdateUserRecipeRequest {

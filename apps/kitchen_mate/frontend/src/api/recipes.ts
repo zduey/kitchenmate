@@ -4,6 +4,7 @@ import {
   Recipe,
   SaveRecipeRequest,
   SaveRecipeResponse,
+  ThumbnailUploadResponse,
   UpdateUserRecipeRequest,
   UserRecipe,
   getErrorMessage,
@@ -175,6 +176,83 @@ export async function deleteUserRecipe(recipeId: string): Promise<void> {
   if (!response.ok) {
     const error: ApiError = await response.json();
     const message = getErrorMessage(error.detail, "Failed to delete recipe");
+    throw new RecipeError(message, response.status);
+  }
+}
+
+/**
+ * Save a recipe extracted from an uploaded file (atomic file + recipe save).
+ */
+export async function saveRecipeFromUpload(
+  file: File,
+  recipe: Recipe,
+  parsingMethod: string,
+  tags?: string[],
+  notes?: string
+): Promise<SaveRecipeResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("recipe_json", JSON.stringify(recipe));
+  formData.append("parsing_method", parsingMethod);
+  if (tags && tags.length > 0) {
+    formData.append("tags_json", JSON.stringify(tags));
+  }
+  if (notes) {
+    formData.append("notes", notes);
+  }
+
+  const response = await fetch(`${API_BASE}/me/recipes/from-upload`, {
+    method: "POST",
+    body: formData,
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    const error: ApiError = await response.json();
+    const message = getErrorMessage(error.detail, "Failed to save recipe");
+    throw new RecipeError(message, response.status);
+  }
+
+  return response.json();
+}
+
+/**
+ * Upload or replace the thumbnail for a saved recipe.
+ */
+export async function uploadRecipeThumbnail(
+  recipeId: string,
+  file: File
+): Promise<ThumbnailUploadResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(`${API_BASE}/me/recipes/${recipeId}/thumbnail`, {
+    method: "POST",
+    body: formData,
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    const error: ApiError = await response.json();
+    const message = getErrorMessage(error.detail, "Failed to upload thumbnail");
+    throw new RecipeError(message, response.status);
+  }
+
+  return response.json();
+}
+
+/**
+ * Delete the thumbnail for a saved recipe.
+ */
+export async function deleteRecipeThumbnail(recipeId: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/me/recipes/${recipeId}/thumbnail`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    const error: ApiError = await response.json();
+    const message = getErrorMessage(error.detail, "Failed to delete thumbnail");
     throw new RecipeError(message, response.status);
   }
 }

@@ -53,6 +53,16 @@ class Settings(BaseSettings):
     cache_db_path: str = "kitchenmate.db"
     cache_enabled: bool = True
 
+    # Storage configuration
+    storage_backend: str = "local"  # "local" | "s3"
+    storage_local_path: str = "uploads"
+    storage_public_base_url: str | None = None  # Required for S3 public buckets; auto-set for local
+    s3_bucket: str | None = None
+    s3_endpoint_url: str | None = None  # MinIO, R2, B2 override
+    s3_access_key_id: str | None = None
+    s3_secret_access_key: str | None = None
+    s3_region: str = "us-east-1"
+
     @model_validator(mode="before")
     @classmethod
     def handle_pro_user_ids(cls, data: dict[str, Any]) -> dict[str, Any]:
@@ -65,6 +75,25 @@ class Settings(BaseSettings):
             else:
                 data["pro_user_ids_str"] = pro_ids
         return data
+
+    @model_validator(mode="after")
+    def validate_s3_settings(self) -> "Settings":
+        """Validate that required S3 settings are present when using S3 backend."""
+        if self.storage_backend == "s3":
+            missing = [
+                field
+                for field, value in [
+                    ("s3_bucket", self.s3_bucket),
+                    ("s3_access_key_id", self.s3_access_key_id),
+                    ("s3_secret_access_key", self.s3_secret_access_key),
+                ]
+                if not value
+            ]
+            if missing:
+                raise ValueError(
+                    f"S3 storage backend requires: {', '.join(missing)}"
+                )
+        return self
 
     @property
     def pro_user_ids(self) -> set[str]:

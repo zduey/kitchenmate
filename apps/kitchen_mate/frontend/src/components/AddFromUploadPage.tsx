@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Recipe } from "../types/recipe";
 import { uploadRecipe, ClipError } from "../api/clip";
-import { saveRecipe, RecipeError } from "../api/recipes";
+import { saveRecipeFromUpload, RecipeError } from "../api/recipes";
 import { FileDropZone } from "./FileDropZone";
 import { RecipeCard } from "./RecipeCard";
 import { LoadingSpinner } from "./LoadingSpinner";
@@ -13,8 +13,8 @@ import { useIsPro } from "../hooks/usePermission";
 type PageState =
   | { status: "idle" }
   | { status: "extracting"; filename: string }
-  | { status: "extracted"; filename: string; recipe: Recipe; parsingMethod: string }
-  | { status: "saving"; filename: string; recipe: Recipe; parsingMethod: string }
+  | { status: "extracted"; file: File; filename: string; recipe: Recipe; parsingMethod: string }
+  | { status: "saving"; file: File; filename: string; recipe: Recipe; parsingMethod: string }
   | { status: "saved"; filename: string; recipe: Recipe; recipeId: string }
   | { status: "error"; filename: string; message: string; errorType: ErrorType };
 
@@ -31,6 +31,7 @@ export function AddFromUploadPage() {
       const result = await uploadRecipe(file);
       setState({
         status: "extracted",
+        file,
         filename: file.name,
         recipe: result.recipe,
         parsingMethod: result.parsing_method,
@@ -57,17 +58,18 @@ export function AddFromUploadPage() {
 
     setState({
       status: "saving",
+      file: state.file,
       filename: state.filename,
       recipe: state.recipe,
       parsingMethod: state.parsingMethod,
     });
 
     try {
-      const result = await saveRecipe({
-        sourceType: "upload",
-        recipe: state.recipe,
-        parsingMethod: state.parsingMethod,
-      });
+      const result = await saveRecipeFromUpload(
+        state.file,
+        state.recipe,
+        state.parsingMethod,
+      );
       setState({
         status: "saved",
         filename: state.filename,
