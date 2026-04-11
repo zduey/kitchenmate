@@ -90,9 +90,7 @@ class Settings(BaseSettings):
                 if not value
             ]
             if missing:
-                raise ValueError(
-                    f"S3 storage backend requires: {', '.join(missing)}"
-                )
+                raise ValueError(f"S3 storage backend requires: {', '.join(missing)}")
         return self
 
     @property
