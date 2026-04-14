@@ -35,12 +35,10 @@ async def serve_file(
 
     # Resolve and validate the path (prevents traversal)
     try:
-        file_path = storage.base_path / file_key
-        resolved = file_path.resolve()
         base_resolved = storage.base_path.resolve()
-        if not str(resolved).startswith(str(base_resolved)):
-            raise HTTPException(status_code=400, detail="Invalid file key")
-    except Exception:
+        resolved = (base_resolved / file_key).resolve()
+        resolved.relative_to(base_resolved)
+    except ValueError:
         raise HTTPException(status_code=400, detail="Invalid file key")
 
     if not resolved.exists() or not resolved.is_file():

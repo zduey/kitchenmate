@@ -469,23 +469,24 @@ async def upload_recipe_thumbnail(
         raise HTTPException(status_code=400, detail="Only image files are accepted for thumbnails")
 
     new_key = f"users/{user.id}/recipes/{recipe_id}/thumbnail{ext}"
-
-    # Delete old thumbnail from storage if different key
-    if existing.thumbnail_key and existing.thumbnail_key != new_key:
-        try:
-            await storage.delete(existing.thumbnail_key)
-        except Exception:
-            logger.warning("Failed to delete old thumbnail %s", existing.thumbnail_key)
+    old_key = existing.thumbnail_key
 
     await storage.upload(new_key, content, mime_type)
 
     updated = await update_recipe_thumbnail_key(recipe_id, user.id, new_key)
     if not updated:
         try:
-            await storage.delete(new_key)
+            if old_key != new_key:
+                await storage.delete(new_key)
         except Exception:
             pass
         raise HTTPException(status_code=404, detail="Recipe not found")
+
+    if old_key and old_key != new_key:
+        try:
+            await storage.delete(old_key)
+        except Exception:
+            logger.warning("Failed to delete old thumbnail %s", old_key)
 
     return ThumbnailUploadResponse(image_url=storage.get_url(new_key))
 

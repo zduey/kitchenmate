@@ -497,7 +497,15 @@ async def save_user_recipe(
                     existing.tags = tags_json
                 if notes:
                     existing.notes = notes
-                # Commit happens via context manager
+
+            if source_file_key is not None:
+                existing.source_file_key = source_file_key
+
+            if thumbnail_key is not None:
+                existing.thumbnail_key = thumbnail_key
+
+            if source_file_key is not None or thumbnail_key is not None:
+                existing.updated_at = now
 
             # Return the existing recipe
             return _user_recipe_model_to_schema(existing), False

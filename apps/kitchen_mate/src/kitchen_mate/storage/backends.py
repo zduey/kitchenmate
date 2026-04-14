@@ -48,8 +48,11 @@ class LocalStorageBackend:
 
     def _resolve_path(self, key: str) -> Path:
         """Resolve a key to an absolute path, preventing path traversal."""
-        resolved = (self._base_path / key).resolve()
-        if not str(resolved).startswith(str(self._base_path.resolve())):
+        base_resolved = self._base_path.resolve()
+        resolved = (base_resolved / key).resolve()
+        try:
+            resolved.relative_to(base_resolved)
+        except ValueError:
             raise ValueError(f"Invalid key: {key}")
         return resolved
 

@@ -5,16 +5,28 @@ from __future__ import annotations
 import asyncio
 import tempfile
 from datetime import datetime, timedelta, timezone
+from io import BytesIO
 from typing import TYPE_CHECKING, Generator
 
 import pytest
+from fastapi import HTTPException, UploadFile
 from fastapi.testclient import TestClient
 from jose import jwt
 
 from kitchen_mate.config import Settings, get_settings
-from kitchen_mate.database import create_tables, init_database, store_recipe
+from kitchen_mate.database import (
+    close_database,
+    create_tables,
+    get_user_recipe,
+    init_database,
+    save_user_recipe,
+    store_recipe,
+)
 from kitchen_mate.main import app
 from kitchen_mate.schemas import Parser
+from kitchen_mate.auth import DEFAULT_USER
+from kitchen_mate.storage.backends import StorageBackend
+import kitchen_mate.routes.me as me_routes
 from recipe_clipper.models import Ingredient, Recipe
 
 if TYPE_CHECKING:
@@ -338,6 +350,133 @@ def test_save_recipe_restores_deleted(client_with_db: TestClient, sample_recipe:
     # Should be back in list
     response = client_with_db.get("/api/me/recipes")
     assert len(response.json()["recipes"]) == 1
+
+
+def test_upload_save_updates_existing_file_metadata(sample_recipe: Recipe) -> None:
+    """Test duplicate uploaded saves replace file metadata on the existing recipe row."""
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        db_path = f.name
+
+    try:
+        asyncio.run(init_database(db_path))
+        asyncio.run(create_tables())
+
+        cached = asyncio.run(
+            store_recipe(
+                "upload://abc123hash",
+                sample_recipe,
+                "abc123hash",
+                Parser.llm_image,
+            )
+        )
+
+        first_saved, first_is_new = asyncio.run(
+            save_user_recipe(
+                user_id="local",
+                recipe_id=cached.id,
+                recipe_data=sample_recipe,
+                source_file_key="users/local/recipes/original/source.png",
+                thumbnail_key="users/local/recipes/original/source.png",
+            )
+        )
+        assert first_is_new is True
+
+        second_saved, second_is_new = asyncio.run(
+            save_user_recipe(
+                user_id="local",
+                recipe_id=cached.id,
+                recipe_data=sample_recipe,
+                source_file_key="users/local/recipes/replacement/source.png",
+                thumbnail_key="users/local/recipes/replacement/source.png",
+            )
+        )
+        assert second_is_new is False
+        assert second_saved.id == first_saved.id
+        assert second_saved.source_file_key == "users/local/recipes/replacement/source.png"
+        assert second_saved.thumbnail_key == "users/local/recipes/replacement/source.png"
+
+        stored = asyncio.run(get_user_recipe("local", first_saved.id))
+        assert stored is not None
+        assert stored.source_file_key == "users/local/recipes/replacement/source.png"
+        assert stored.thumbnail_key == "users/local/recipes/replacement/source.png"
+    finally:
+        asyncio.run(close_database())
+
+
+def test_thumbnail_upload_keeps_old_thumbnail_when_db_update_fails(sample_recipe: Recipe) -> None:
+    """Test thumbnail replacement does not delete the old object before DB success."""
+
+    class FakeStorage(StorageBackend):
+        def __init__(self) -> None:
+            self.uploaded: list[str] = []
+            self.deleted: list[str] = []
+
+        async def upload(self, key: str, content: bytes, content_type: str) -> None:
+            self.uploaded.append(key)
+
+        def get_url(self, key: str) -> str:
+            return f"https://storage.test/{key}"
+
+        async def delete(self, key: str) -> None:
+            self.deleted.append(key)
+
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        db_path = f.name
+
+    try:
+        asyncio.run(init_database(db_path))
+        asyncio.run(create_tables())
+
+        cached = asyncio.run(
+            store_recipe(
+                "https://example.com/cake",
+                sample_recipe,
+                "abc123hash",
+                Parser.recipe_scrapers,
+            )
+        )
+        old_key = "users/local/recipes/existing-thumbnail/thumbnail.jpg"
+        saved, _ = asyncio.run(
+            save_user_recipe(
+                user_id="local",
+                recipe_id=cached.id,
+                recipe_data=sample_recipe,
+                thumbnail_key=old_key,
+            )
+        )
+
+        original_update = me_routes.update_recipe_thumbnail_key
+
+        async def fail_update(
+            user_recipe_id: str, user_id: str, thumbnail_key: str | None
+        ) -> bool:
+            return False
+
+        me_routes.update_recipe_thumbnail_key = fail_update
+        try:
+            upload = UploadFile(
+                filename="thumb.png",
+                file=BytesIO(b"\x89PNG\r\n\x1a\n" + b"\x00" * 128),
+            )
+            fake_storage = FakeStorage()
+            with pytest.raises(HTTPException) as exc_info:
+                asyncio.run(
+                    me_routes.upload_recipe_thumbnail(
+                        recipe_id=saved.id,
+                        file=upload,
+                        user=DEFAULT_USER,
+                        storage=fake_storage,
+                    )
+                )
+        finally:
+            me_routes.update_recipe_thumbnail_key = original_update
+
+        assert exc_info.value.status_code == 404
+        assert fake_storage.uploaded == [f"users/local/recipes/{saved.id}/thumbnail.png"]
+        assert fake_storage.deleted == [f"users/local/recipes/{saved.id}/thumbnail.png"]
+        assert old_key not in fake_storage.deleted
+    finally:
+        asyncio.run(close_database())
 
 
 # =============================================================================
