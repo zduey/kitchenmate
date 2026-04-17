@@ -55,7 +55,7 @@ export function RecipeList({
     try {
       // Don't pass tag filter to API for untagged - we'll filter client-side
       const apiFilter = filter && filter !== "__untagged__" ? [filter] : undefined;
-      const response = await listUserRecipes({ cursor, limit: 12, tags: apiFilter, search: search || undefined });
+      const response = await listUserRecipes({ cursor, limit: 100, tags: apiFilter, search: search || undefined });
 
       if (cursor) {
         setRecipes((prev) => [...prev, ...response.recipes]);
