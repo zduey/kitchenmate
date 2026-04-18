@@ -28,13 +28,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Get settings at startup (allows dependency injection override for tests)
     settings = get_settings()
 
-    if settings.cache_enabled:
-        await init_database(settings.cache_db_path)
+    if settings.database.enabled:
+        await init_database(settings.database.path)
 
     yield
 
     # Cleanup on shutdown
-    if settings.cache_enabled:
+    if settings.database.enabled:
         await close_database()
 
 

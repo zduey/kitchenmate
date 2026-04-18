@@ -200,7 +200,7 @@ async def _save_web_recipe(
             url=url,
             timeout=save_request.timeout,
             use_llm_fallback=save_request.use_llm_fallback,
-            api_key=settings.anthropic_api_key,
+            api_key=settings.anthropic.api_key,
             llm_permitted=can_use_ai,
         )
 

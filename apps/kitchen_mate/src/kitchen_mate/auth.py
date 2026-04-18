@@ -58,7 +58,7 @@ def verify_jwt_token(token: str, settings: Settings) -> dict:
     Raises:
         HTTPException: If token is invalid or verification fails
     """
-    if not settings.supabase_jwt_secret and not settings.supabase_url:
+    if not settings.supabase.jwt_secret and not settings.supabase.url:
         raise HTTPException(status_code=500, detail="Authentication not configured")
 
     try:
@@ -67,9 +67,9 @@ def verify_jwt_token(token: str, settings: Settings) -> dict:
         alg = unverified_header.get("alg", "unknown")
         logger.info("JWT algorithm: %s", alg)
 
-        if alg == "ES256" and settings.supabase_url:
+        if alg == "ES256" and settings.supabase.url:
             # Use JWKS for ES256
-            jwks_client = get_jwks_client(settings.supabase_url)
+            jwks_client = get_jwks_client(settings.supabase.url)
             signing_key = jwks_client.get_signing_key_from_jwt(token)
             payload = jwt.decode(
                 token,
@@ -77,11 +77,11 @@ def verify_jwt_token(token: str, settings: Settings) -> dict:
                 algorithms=["ES256"],
                 audience="authenticated",
             )
-        elif settings.supabase_jwt_secret:
+        elif settings.supabase.jwt_secret:
             # Use JWT secret for HS256
             payload = jwt.decode(
                 token,
-                settings.supabase_jwt_secret,
+                settings.supabase.jwt_secret,
                 algorithms=["HS256"],
                 audience="authenticated",
             )

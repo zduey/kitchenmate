@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from pydantic import AliasChoices, Field, model_validator
+from pydantic import AliasChoices, BaseModel, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Path to .env file relative to this config file (apps/kitchen_mate/.env)
@@ -21,6 +21,36 @@ def _parse_user_ids(value: str | set[str] | None) -> set[str]:
     if not value:
         return set()
     return {uid.strip() for uid in value.split(",") if uid.strip()}
+
+
+class AnthropicConfig(BaseModel):
+    api_key: str | None = None
+    default_timeout: int = 10
+
+
+class SupabaseConfig(BaseModel):
+    jwt_secret: str | None = None  # For HS256 verification (legacy)
+    url: str | None = None  # For ES256 JWKS verification
+
+
+class DatabaseConfig(BaseModel):
+    path: str = "kitchenmate.db"
+    enabled: bool = True
+
+
+class S3Config(BaseModel):
+    bucket: str | None = None
+    access_key_id: str | None = None
+    secret_access_key: str | None = None
+    region: str = "us-east-1"
+    endpoint_url: str | None = None  # MinIO, R2, B2 override
+
+
+class StorageConfig(BaseModel):
+    backend: str = "local"  # "local" | "s3"
+    local_path: str = "uploads"
+    public_base_url: str | None = None  # Required for S3 public buckets; auto-set for local
+    s3: S3Config = Field(default_factory=S3Config)
 
 
 class Settings(BaseSettings):
@@ -67,7 +97,6 @@ class Settings(BaseSettings):
     @classmethod
     def handle_pro_user_ids(cls, data: dict[str, Any]) -> dict[str, Any]:
         """Convert pro_user_ids to pro_user_ids_str if needed."""
-        # Check for pro_user_ids in various forms
         pro_ids = data.pop("pro_user_ids", None) or data.pop("PRO_USER_IDS", None)
         if pro_ids is not None:
             if isinstance(pro_ids, set):
@@ -92,6 +121,35 @@ class Settings(BaseSettings):
             if missing:
                 raise ValueError(f"S3 storage backend requires: {', '.join(missing)}")
         return self
+
+    # --- Grouped sub-config accessors ---
+
+    @property
+    def anthropic(self) -> AnthropicConfig:
+        return AnthropicConfig(api_key=self.anthropic_api_key, default_timeout=self.default_timeout)
+
+    @property
+    def supabase(self) -> SupabaseConfig:
+        return SupabaseConfig(jwt_secret=self.supabase_jwt_secret, url=self.supabase_url)
+
+    @property
+    def database(self) -> DatabaseConfig:
+        return DatabaseConfig(path=self.cache_db_path, enabled=self.cache_enabled)
+
+    @property
+    def storage(self) -> StorageConfig:
+        return StorageConfig(
+            backend=self.storage_backend,
+            local_path=self.storage_local_path,
+            public_base_url=self.storage_public_base_url,
+            s3=S3Config(
+                bucket=self.s3_bucket,
+                access_key_id=self.s3_access_key_id,
+                secret_access_key=self.s3_secret_access_key,
+                region=self.s3_region,
+                endpoint_url=self.s3_endpoint_url,
+            ),
+        )
 
     @property
     def pro_user_ids(self) -> set[str]:

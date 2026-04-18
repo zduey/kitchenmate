@@ -42,7 +42,7 @@ def create_test_jwt(user_id: str, email: str, secret: str, expired: bool = False
 def test_get_current_user_valid_token(client: TestClient, settings_with_supabase: Settings) -> None:
     """Test retrieving current user with valid token."""
     token = create_test_jwt(
-        "user-123", "test@example.com", settings_with_supabase.supabase_jwt_secret
+        "user-123", "test@example.com", settings_with_supabase.supabase.jwt_secret
     )
 
     response = client.get("/api/auth/me", cookies={"access_token": token})
@@ -76,7 +76,7 @@ def test_get_current_user_expired_token(
 ) -> None:
     """Test that expired token returns 401."""
     token = create_test_jwt(
-        "user-123", "test@example.com", settings_with_supabase.supabase_jwt_secret, expired=True
+        "user-123", "test@example.com", settings_with_supabase.supabase.jwt_secret, expired=True
     )
 
     response = client.get("/api/auth/me", cookies={"access_token": token})
@@ -117,7 +117,7 @@ def test_get_current_user_wrong_audience(
         "exp": datetime.now(timezone.utc) + timedelta(hours=1),
     }
 
-    token = jwt.encode(payload, settings_with_supabase.supabase_jwt_secret, algorithm="HS256")
+    token = jwt.encode(payload, settings_with_supabase.supabase.jwt_secret, algorithm="HS256")
 
     response = client.get("/api/auth/me", cookies={"access_token": token})
 

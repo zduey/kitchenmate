@@ -20,20 +20,20 @@ def get_storage(
     For local backend, the base_url is derived from the incoming request
     so it works behind proxies and in dev/prod without extra config.
     """
-    if settings.storage_backend == "s3":
+    if settings.storage.backend == "s3":
         return S3StorageBackend(
-            bucket=settings.s3_bucket or "",
-            access_key_id=settings.s3_access_key_id or "",
-            secret_access_key=settings.s3_secret_access_key or "",
-            region=settings.s3_region,
-            endpoint_url=settings.s3_endpoint_url,
-            public_base_url=settings.storage_public_base_url,
+            bucket=settings.storage.s3.bucket or "",
+            access_key_id=settings.storage.s3.access_key_id or "",
+            secret_access_key=settings.storage.s3.secret_access_key or "",
+            region=settings.storage.s3.region,
+            endpoint_url=settings.storage.s3.endpoint_url,
+            public_base_url=settings.storage.public_base_url,
         )
 
     # Local backend
-    base_path = Path(settings.storage_local_path)
-    if settings.storage_public_base_url:
-        base_url = settings.storage_public_base_url
+    base_path = Path(settings.storage.local_path)
+    if settings.storage.public_base_url:
+        base_url = settings.storage.public_base_url
     else:
         # Build URL from request: scheme + host + /api/files
         base_url = f"{request.url.scheme}://{request.url.netloc}/api/files"
