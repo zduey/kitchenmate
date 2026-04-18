@@ -15,6 +15,7 @@ from kitchen_mate.database.repositories import (
     save_user_recipe,
 )
 from kitchen_mate.schemas import CreateShareResponse, SaveSharedRecipeResponse, SharedRecipeResponse
+from kitchen_mate.storage import StorageBackend, get_storage
 
 
 router = APIRouter()
@@ -54,7 +55,10 @@ async def delete_share(
 
 
 @router.get("/shared/{share_token}", response_model=SharedRecipeResponse)
-async def get_shared_recipe(share_token: str) -> SharedRecipeResponse:
+async def get_shared_recipe(
+    share_token: str,
+    storage: Annotated[StorageBackend, Depends(get_storage)],
+) -> SharedRecipeResponse:
     """View a shared recipe. No authentication required."""
     share = await get_share_by_token(share_token)
     if share is None:
@@ -64,9 +68,13 @@ async def get_shared_recipe(share_token: str) -> SharedRecipeResponse:
     if user_recipe is None:
         raise HTTPException(status_code=404, detail="Recipe not found")
 
+    recipe = user_recipe.recipe
+    if user_recipe.thumbnail_key:
+        recipe = recipe.model_copy(update={"image": storage.get_url(user_recipe.thumbnail_key)})
+
     return SharedRecipeResponse(
-        title=user_recipe.recipe.title,
-        recipe=user_recipe.recipe,
+        title=recipe.title,
+        recipe=recipe,
         shared_at=share.created_at.isoformat(),
     )
 
