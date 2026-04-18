@@ -3,6 +3,7 @@ import { useAuthContext } from "../hooks/useAuthContext";
 import { useRequireAuth } from "../hooks/useRequireAuth";
 import { UserDropdown } from "./UserDropdown";
 import { AddRecipeDropdown } from "./AddRecipeDropdown";
+import { KitchensDropdown } from "./KitchensDropdown";
 
 interface HeaderProps {
   onSignInClick: () => void;
@@ -61,25 +62,18 @@ export function Header({ onSignInClick }: HeaderProps) {
                 to="/"
                 className="text-sm font-medium text-brown-medium hover:text-coral transition-colors"
               >
-                My Recipes
+                Recipes
               </Link>
             ) : (
               <span
                 className="text-sm font-medium text-gray-400 cursor-not-allowed"
                 title="Sign in to access your recipes"
               >
-                My Recipes
+                Recipes
               </span>
             )}
 
-            {isAuthEnabled && isAuthorized && (
-              <Link
-                to="/kitchens"
-                className="text-sm font-medium text-brown-medium hover:text-coral transition-colors"
-              >
-                Kitchens
-              </Link>
-            )}
+            {isAuthEnabled && isAuthorized && <KitchensDropdown />}
 
             <AddRecipeDropdown variant="button" />
           </nav>

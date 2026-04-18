@@ -10,6 +10,7 @@ import {
 } from "../api/kitchens";
 import { useAuthContext } from "../hooks/useAuthContext";
 import { LoadingSpinner } from "./LoadingSpinner";
+import { KitchenRecipeListItem } from "./KitchenRecipeListItem";
 import type { KitchenDetail, KitchenRecipe } from "../types/kitchen";
 
 export function KitchenDetailPage() {
@@ -113,7 +114,7 @@ export function KitchenDetailPage() {
   if (!kitchen) return null;
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
         <Link to="/kitchens" className="text-coral hover:text-coral-dark text-sm">
           ← Kitchens
@@ -184,47 +185,15 @@ export function KitchenDetailPage() {
             No recipes shared yet. Share a recipe from your collection using the kitchen icon on any recipe.
           </p>
         ) : (
-          <div className="grid grid-cols-1 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {recipes.map((recipe) => (
-              <div
+              <KitchenRecipeListItem
                 key={recipe.id}
-                className="bg-white rounded-lg border border-gray-200 p-4 flex gap-4"
-              >
-                {recipe.image_url && (
-                  <img
-                    src={recipe.image_url}
-                    alt={recipe.title}
-                    className="w-16 h-16 object-cover rounded flex-shrink-0"
-                  />
-                )}
-                <div className="flex-1 min-w-0">
-                  <Link
-                    to={`/recipes/${recipe.user_recipe_id}`}
-                    className="font-medium text-brown-dark hover:text-coral truncate block"
-                  >
-                    {recipe.title}
-                  </Link>
-                  {recipe.tags && recipe.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {recipe.tags.map((tag) => (
-                        <span key={tag} className="text-xs px-1.5 py-0.5 bg-gray-100 text-brown-medium rounded">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <button
-                  onClick={() => handleRemoveRecipe(recipe.id)}
-                  disabled={removingRecipe === recipe.id}
-                  className="text-xs text-brown-medium hover:text-red-600 disabled:opacity-50 flex-shrink-0"
-                  title="Remove from kitchen"
-                >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
+                recipe={recipe}
+                kitchenName={kitchen.name}
+                onRemove={() => handleRemoveRecipe(recipe.id)}
+                removing={removingRecipe === recipe.id}
+              />
             ))}
           </div>
         )}
