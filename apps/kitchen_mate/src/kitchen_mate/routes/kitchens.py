@@ -18,6 +18,7 @@ from kitchen_mate.database.kitchen_repositories import (
     remove_kitchen_recipe,
     remove_member,
     share_recipe_to_kitchen,
+    update_member_role,
 )
 from kitchen_mate.schemas import (
     AddMemberRequest,
@@ -29,6 +30,7 @@ from kitchen_mate.schemas import (
     KitchenSummaryResponse,
     ListKitchenRecipesResponse,
     ShareToKitchenRequest,
+    UpdateMemberRoleRequest,
 )
 
 router = APIRouter()
@@ -167,8 +169,39 @@ async def remove_member_endpoint(
     """Remove a member from a kitchen (admin only)."""
     await _require_admin(kitchen_id, user)
 
+    kitchen = await get_kitchen(kitchen_id, user.id)
+    if kitchen is None:
+        raise HTTPException(status_code=404, detail="Kitchen not found")
+    if target_user_id == kitchen.created_by:
+        raise HTTPException(status_code=403, detail="Cannot remove the kitchen creator")
+
     removed = await remove_member(kitchen_id, target_user_id)
     if not removed:
+        raise HTTPException(status_code=404, detail="Member not found")
+
+
+@router.patch(
+    "/kitchens/{kitchen_id}/members/{target_user_id}",
+    status_code=204,
+    dependencies=[Depends(_require_multi_tenant)],
+)
+async def update_member_role_endpoint(
+    kitchen_id: str,
+    target_user_id: str,
+    body: UpdateMemberRoleRequest,
+    user: Annotated[User, Depends(get_user)],
+) -> None:
+    """Change a member's role (admin only). The kitchen creator's role cannot be changed."""
+    await _require_admin(kitchen_id, user)
+
+    kitchen = await get_kitchen(kitchen_id, user.id)
+    if kitchen is None:
+        raise HTTPException(status_code=404, detail="Kitchen not found")
+    if target_user_id == kitchen.created_by:
+        raise HTTPException(status_code=403, detail="Cannot change the role of the kitchen creator")
+
+    updated = await update_member_role(kitchen_id, target_user_id, body.role)
+    if not updated:
         raise HTTPException(status_code=404, detail="Member not found")
 
 

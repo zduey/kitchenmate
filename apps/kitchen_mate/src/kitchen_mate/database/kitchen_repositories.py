@@ -295,6 +295,21 @@ async def remove_member(kitchen_id: str, target_user_id: str) -> bool:
         return True
 
 
+async def update_member_role(kitchen_id: str, target_user_id: str, new_role: str) -> bool:
+    """Update a member's role. Returns False if member not found."""
+    async with get_session() as session:
+        result = await session.execute(
+            select(KitchenMemberModel)
+            .where(KitchenMemberModel.kitchen_id == kitchen_id)
+            .where(KitchenMemberModel.user_id == target_user_id)
+        )
+        member = result.scalar_one_or_none()
+        if member is None:
+            return False
+        member.role = new_role
+        return True
+
+
 async def process_pending_invites(user_id: str, email: str) -> int:
     """Resolve pending kitchen invites for an email address.
 
