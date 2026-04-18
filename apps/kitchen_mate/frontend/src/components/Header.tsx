@@ -72,6 +72,15 @@ export function Header({ onSignInClick }: HeaderProps) {
               </span>
             )}
 
+            {isAuthEnabled && isAuthorized && (
+              <Link
+                to="/kitchens"
+                className="text-sm font-medium text-brown-medium hover:text-coral transition-colors"
+              >
+                Kitchens
+              </Link>
+            )}
+
             <AddRecipeDropdown variant="button" />
           </nav>
         </div>

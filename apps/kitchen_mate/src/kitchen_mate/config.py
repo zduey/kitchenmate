@@ -79,6 +79,9 @@ class Settings(BaseSettings):
     # CORS configuration
     cors_origins: str = "http://localhost:5173"
 
+    # Base URL for constructing shareable links
+    app_base_url: str = "http://localhost:5173"
+
     # Database configuration
     cache_db_path: str = "kitchenmate.db"
     cache_enabled: bool = True
