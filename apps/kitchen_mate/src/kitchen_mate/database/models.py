@@ -68,3 +68,112 @@ class UserRecipeModel(Base):
         # Unique constraint: one user can save a recipe once
         Index("uq_user_recipe", "user_id", "recipe_id", unique=True),
     )
+
+
+class UserModel(Base):
+    """Persisted user records synced from JWT claims."""
+
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(Text, primary_key=True)  # Supabase UUID
+    email: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+    __table_args__ = (Index("idx_users_email", "email"),)
+
+
+class RecipeShareModel(Base):
+    """Public share links for individual user recipes."""
+
+    __tablename__ = "recipe_shares"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_recipe_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("user_recipes.id"), nullable=False
+    )
+    share_token: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    user_recipe: Mapped["UserRecipeModel"] = relationship()
+
+    __table_args__ = (
+        Index("idx_recipe_shares_share_token", "share_token"),
+        Index("idx_recipe_shares_user_recipe_id", "user_recipe_id"),
+    )
+
+
+class KitchenModel(Base):
+    """Groups of users that can share recipes."""
+
+    __tablename__ = "kitchens"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    created_by: Mapped[str] = mapped_column(Text, nullable=False)  # user_id
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+    members: Mapped[list["KitchenMemberModel"]] = relationship(back_populates="kitchen")
+    kitchen_recipes: Mapped[list["KitchenRecipeModel"]] = relationship(back_populates="kitchen")
+
+    __table_args__ = (Index("idx_kitchens_created_by", "created_by"),)
+
+
+class KitchenMemberModel(Base):
+    """Members belonging to a kitchen."""
+
+    __tablename__ = "kitchen_members"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    kitchen_id: Mapped[str] = mapped_column(String(36), ForeignKey("kitchens.id"), nullable=False)
+    user_id: Mapped[str] = mapped_column(Text, nullable=False)
+    role: Mapped[str] = mapped_column(Text, nullable=False)  # "admin" | "member"
+    joined_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+    kitchen: Mapped["KitchenModel"] = relationship(back_populates="members")
+
+    __table_args__ = (
+        Index("uq_kitchen_member", "kitchen_id", "user_id", unique=True),
+        Index("idx_kitchen_members_user_id", "user_id"),
+    )
+
+
+class KitchenInviteModel(Base):
+    """Pending email invitations to kitchens."""
+
+    __tablename__ = "kitchen_invites"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    kitchen_id: Mapped[str] = mapped_column(String(36), ForeignKey("kitchens.id"), nullable=False)
+    invited_email: Mapped[str] = mapped_column(Text, nullable=False)
+    invited_by: Mapped[str] = mapped_column(Text, nullable=False)  # user_id
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+    __table_args__ = (
+        Index("uq_kitchen_invite", "kitchen_id", "invited_email", unique=True),
+        Index("idx_kitchen_invites_email", "invited_email"),
+    )
+
+
+class KitchenRecipeModel(Base):
+    """Recipes shared with a kitchen."""
+
+    __tablename__ = "kitchen_recipes"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    kitchen_id: Mapped[str] = mapped_column(String(36), ForeignKey("kitchens.id"), nullable=False)
+    user_recipe_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("user_recipes.id"), nullable=False
+    )
+    shared_by: Mapped[str] = mapped_column(Text, nullable=False)  # user_id
+    shared_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+    kitchen: Mapped["KitchenModel"] = relationship(back_populates="kitchen_recipes")
+    user_recipe: Mapped["UserRecipeModel"] = relationship()
+
+    __table_args__ = (
+        Index("uq_kitchen_recipe", "kitchen_id", "user_recipe_id", unique=True),
+        Index("idx_kitchen_recipes_kitchen_id", "kitchen_id"),
+    )

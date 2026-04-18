@@ -4,17 +4,18 @@ from __future__ import annotations
 
 import hashlib
 import json
+import secrets
 import uuid
 from datetime import datetime
 from urllib.parse import urlparse
 
 from pydantic import BaseModel
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 
 from recipe_clipper.models import Recipe
 
 from kitchen_mate.database.engine import get_session
-from kitchen_mate.database.models import RecipeModel, UserRecipeModel
+from kitchen_mate.database.models import RecipeModel, RecipeShareModel, UserModel, UserRecipeModel
 from kitchen_mate.schemas import Parser
 
 
@@ -67,6 +68,25 @@ class UserRecipeSummary(BaseModel):
     thumbnail_key: str | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class DbUser(BaseModel):
+    """A persisted user record."""
+
+    id: str
+    email: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class RecipeShare(BaseModel):
+    """A public share link for a user recipe."""
+
+    id: str
+    user_recipe_id: str
+    share_token: str
+    created_at: datetime
+    expires_at: datetime | None
 
 
 # =============================================================================
@@ -648,3 +668,181 @@ async def delete_user_recipe(user_id: str, recipe_id: str) -> bool:
         result = await session.execute(stmt)
 
         return result.rowcount > 0
+
+
+# =============================================================================
+# User Functions
+# =============================================================================
+
+
+async def upsert_user(user_id: str, email: str) -> DbUser:
+    """Upsert a user record. Called on every authenticated /auth/me request."""
+    now = datetime.now()
+
+    async with get_session() as session:
+        result = await session.execute(select(UserModel).where(UserModel.id == user_id))
+        existing = result.scalar_one_or_none()
+
+        if existing:
+            existing.email = email
+            existing.updated_at = now
+            return DbUser(
+                id=existing.id,
+                email=existing.email,
+                created_at=existing.created_at,
+                updated_at=now,
+            )
+
+        model = UserModel(id=user_id, email=email, created_at=now, updated_at=now)
+        session.add(model)
+        return DbUser(id=user_id, email=email, created_at=now, updated_at=now)
+
+
+async def get_user_by_email(email: str) -> DbUser | None:
+    """Look up a user by email address."""
+    async with get_session() as session:
+        result = await session.execute(select(UserModel).where(UserModel.email == email))
+        row = result.scalar_one_or_none()
+        if row is None:
+            return None
+        return DbUser(
+            id=row.id, email=row.email, created_at=row.created_at, updated_at=row.updated_at
+        )
+
+
+# =============================================================================
+# Recipe Share Functions
+# =============================================================================
+
+
+async def create_or_get_share(user_id: str, user_recipe_id: str) -> RecipeShare:
+    """Create a share link for a user recipe, or return the existing one.
+
+    Verifies ownership before creating.
+
+    Raises:
+        ValueError: If the recipe is not found or not owned by user_id
+    """
+    async with get_session() as session:
+        # Verify ownership
+        ownership_result = await session.execute(
+            select(UserRecipeModel)
+            .where(UserRecipeModel.id == user_recipe_id)
+            .where(UserRecipeModel.user_id == user_id)
+            .where(UserRecipeModel.deleted_at.is_(None))
+        )
+        if ownership_result.scalar_one_or_none() is None:
+            raise ValueError(f"Recipe {user_recipe_id} not found or not owned by user")
+
+        # Return existing share if present
+        existing_result = await session.execute(
+            select(RecipeShareModel).where(RecipeShareModel.user_recipe_id == user_recipe_id)
+        )
+        existing = existing_result.scalar_one_or_none()
+        if existing:
+            return RecipeShare(
+                id=existing.id,
+                user_recipe_id=existing.user_recipe_id,
+                share_token=existing.share_token,
+                created_at=existing.created_at,
+                expires_at=existing.expires_at,
+            )
+
+        share_id = str(uuid.uuid4())
+        share_token = secrets.token_urlsafe(32)
+        now = datetime.now()
+        model = RecipeShareModel(
+            id=share_id,
+            user_recipe_id=user_recipe_id,
+            share_token=share_token,
+            created_at=now,
+            expires_at=None,
+        )
+        session.add(model)
+        return RecipeShare(
+            id=share_id,
+            user_recipe_id=user_recipe_id,
+            share_token=share_token,
+            created_at=now,
+            expires_at=None,
+        )
+
+
+async def get_share_by_token(share_token: str) -> RecipeShare | None:
+    """Fetch a share record by token. Returns None if not found or expired."""
+    now = datetime.now()
+    async with get_session() as session:
+        result = await session.execute(
+            select(RecipeShareModel).where(RecipeShareModel.share_token == share_token)
+        )
+        row = result.scalar_one_or_none()
+        if row is None:
+            return None
+        if row.expires_at is not None and row.expires_at < now:
+            return None
+        return RecipeShare(
+            id=row.id,
+            user_recipe_id=row.user_recipe_id,
+            share_token=row.share_token,
+            created_at=row.created_at,
+            expires_at=row.expires_at,
+        )
+
+
+async def get_share_for_user_recipe(user_id: str, user_recipe_id: str) -> RecipeShare | None:
+    """Get the share record for a user recipe, verifying ownership."""
+    async with get_session() as session:
+        ownership_result = await session.execute(
+            select(UserRecipeModel)
+            .where(UserRecipeModel.id == user_recipe_id)
+            .where(UserRecipeModel.user_id == user_id)
+            .where(UserRecipeModel.deleted_at.is_(None))
+        )
+        if ownership_result.scalar_one_or_none() is None:
+            return None
+
+        result = await session.execute(
+            select(RecipeShareModel).where(RecipeShareModel.user_recipe_id == user_recipe_id)
+        )
+        row = result.scalar_one_or_none()
+        if row is None:
+            return None
+        return RecipeShare(
+            id=row.id,
+            user_recipe_id=row.user_recipe_id,
+            share_token=row.share_token,
+            created_at=row.created_at,
+            expires_at=row.expires_at,
+        )
+
+
+async def revoke_share(user_id: str, user_recipe_id: str) -> bool:
+    """Delete a share record, verifying ownership first."""
+    async with get_session() as session:
+        ownership_result = await session.execute(
+            select(UserRecipeModel)
+            .where(UserRecipeModel.id == user_recipe_id)
+            .where(UserRecipeModel.user_id == user_id)
+            .where(UserRecipeModel.deleted_at.is_(None))
+        )
+        if ownership_result.scalar_one_or_none() is None:
+            return False
+
+        result = await session.execute(
+            delete(RecipeShareModel).where(RecipeShareModel.user_recipe_id == user_recipe_id)
+        )
+        return result.rowcount > 0
+
+
+async def get_user_recipe_by_id_no_auth(user_recipe_id: str) -> UserRecipe | None:
+    """Fetch a user recipe by ID without ownership check. Used by public share endpoints."""
+    async with get_session() as session:
+        result = await session.execute(
+            select(UserRecipeModel)
+            .where(UserRecipeModel.id == user_recipe_id)
+            .where(UserRecipeModel.deleted_at.is_(None))
+        )
+        row = result.scalar_one_or_none()
+        if row is None:
+            return None
+        return _user_recipe_model_to_schema(row)

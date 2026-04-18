@@ -15,7 +15,7 @@ const menuItems = [
 export function AddRecipeDropdown({ variant = "button" }: AddRecipeDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { isAuthorized, isPro } = useRequireAuth();
+  const { isAuthorized, isPro, loading } = useRequireAuth();
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -62,7 +62,7 @@ export function AddRecipeDropdown({ variant = "button" }: AddRecipeDropdownProps
         >
           {menuItems.map((item, index) => {
             const needsAuth = item.requiresAuth && !isAuthorized;
-            const needsUpgrade = item.requiresPro && !isPro;
+            const needsUpgrade = item.requiresPro && !isPro && !loading;
             const isDisabled = needsAuth || needsUpgrade;
             const borderClass = index !== menuItems.length - 1 ? "border-b border-gray-100" : "";
 

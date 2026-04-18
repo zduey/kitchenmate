@@ -12,6 +12,8 @@ import {
 import { RecipeEditor } from "./RecipeEditor";
 import { ExportDropdown } from "./ExportDropdown";
 import { LoadingSpinner } from "./LoadingSpinner";
+import { ShareButton } from "./ShareButton";
+import { ShareToKitchenButton } from "./ShareToKitchenButton";
 
 export function SavedRecipeView() {
   const { id } = useParams<{ id: string }>();
@@ -282,6 +284,8 @@ export function SavedRecipeView() {
           </div>
 
           <div className="flex gap-2 ml-4">
+            {id && <ShareButton recipeId={id} />}
+            {id && <ShareToKitchenButton recipeId={id} />}
             <button
               onClick={() => setIsEditing(true)}
               className="p-2 text-brown-medium hover:text-coral hover:bg-coral hover:bg-opacity-10 rounded"

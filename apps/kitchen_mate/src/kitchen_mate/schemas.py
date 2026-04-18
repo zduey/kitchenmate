@@ -253,3 +253,114 @@ class ThumbnailUploadResponse(BaseModel):
     """Response body for uploading a recipe thumbnail."""
 
     image_url: str = Field(description="URL to the uploaded thumbnail")
+
+
+# =============================================================================
+# Recipe Sharing Schemas
+# =============================================================================
+
+
+class CreateShareResponse(BaseModel):
+    """Response body for creating a share link."""
+
+    share_token: str = Field(description="Unique share token")
+    share_url: str = Field(description="Full shareable URL")
+    created_at: str = Field(description="When the share was created")
+    expires_at: str | None = Field(description="Expiry time, null if no expiry")
+
+
+class SharedRecipeResponse(BaseModel):
+    """Public view of a shared recipe (no user-specific data)."""
+
+    title: str = Field(description="Recipe title")
+    recipe: Recipe = Field(description="The recipe data")
+    shared_at: str = Field(description="When the share link was created")
+
+
+class SaveSharedRecipeResponse(BaseModel):
+    """Response body for saving a shared recipe to own collection."""
+
+    user_recipe_id: str = Field(description="ID of the newly saved user recipe")
+    is_new: bool = Field(description="Whether this is a new save or already existed")
+
+
+# =============================================================================
+# Kitchen Schemas
+# =============================================================================
+
+
+class CreateKitchenRequest(BaseModel):
+    """Request body for creating a kitchen."""
+
+    name: str = Field(min_length=1, max_length=100, description="Kitchen name")
+
+
+class KitchenMemberResponse(BaseModel):
+    """A member of a kitchen."""
+
+    user_id: str = Field(description="User ID")
+    email: str | None = Field(description="User email, if available")
+    role: str = Field(description="Member role: 'admin' or 'member'")
+    joined_at: str = Field(description="When the user joined the kitchen")
+
+
+class KitchenSummaryResponse(BaseModel):
+    """Summary of a kitchen for list views."""
+
+    id: str = Field(description="Kitchen ID")
+    name: str = Field(description="Kitchen name")
+    created_by: str = Field(description="User ID of the creator")
+    member_count: int = Field(description="Number of members")
+    created_at: str = Field(description="When the kitchen was created")
+    updated_at: str = Field(description="Last update time")
+
+
+class KitchenDetailResponse(BaseModel):
+    """Full detail of a kitchen including members."""
+
+    id: str = Field(description="Kitchen ID")
+    name: str = Field(description="Kitchen name")
+    created_by: str = Field(description="User ID of the creator")
+    members: list[KitchenMemberResponse] = Field(description="Kitchen members")
+    created_at: str = Field(description="When the kitchen was created")
+    updated_at: str = Field(description="Last update time")
+
+
+class AddMemberRequest(BaseModel):
+    """Request body for adding a member to a kitchen."""
+
+    email: str = Field(description="Email address of the user to add")
+
+
+class AddMemberResponse(BaseModel):
+    """Response body for adding a member."""
+
+    added: bool = Field(description="True if directly added, False if pending invite")
+    message: str = Field(description="Human-readable status message")
+
+
+class ShareToKitchenRequest(BaseModel):
+    """Request body for sharing a recipe with a kitchen."""
+
+    user_recipe_id: str = Field(description="ID of the user recipe to share")
+
+
+class KitchenRecipeResponse(BaseModel):
+    """A recipe shared with a kitchen."""
+
+    id: str = Field(description="Kitchen recipe ID")
+    kitchen_id: str = Field(description="Kitchen ID")
+    user_recipe_id: str = Field(description="User recipe ID")
+    shared_by: str = Field(description="User ID who shared the recipe")
+    shared_at: str = Field(description="When the recipe was shared")
+    title: str = Field(description="Recipe title")
+    image_url: str | None = Field(description="Recipe image URL")
+    tags: list[str] | None = Field(description="Tags from the original user recipe")
+
+
+class ListKitchenRecipesResponse(BaseModel):
+    """Response body for listing kitchen recipes."""
+
+    recipes: list[KitchenRecipeResponse] = Field(description="List of kitchen recipes")
+    next_cursor: str | None = Field(description="Cursor for next page")
+    has_more: bool = Field(description="Whether there are more recipes")

@@ -8,6 +8,8 @@ interface RequireAuthResult {
   user: User;
   /** Whether the user has Pro tier access */
   isPro: boolean;
+  /** Whether auth state is still being resolved */
+  loading: boolean;
 }
 
 /**
@@ -30,7 +32,7 @@ interface RequireAuthResult {
  * ```
  */
 export function useRequireAuth(): RequireAuthResult {
-  const { user, isAuthEnabled } = useAuthContext();
+  const { user, loading, isAuthEnabled } = useAuthContext();
 
   // Single-tenant mode: always authorized with default user and Pro access
   if (!isAuthEnabled) {
@@ -38,6 +40,7 @@ export function useRequireAuth(): RequireAuthResult {
       isAuthorized: true,
       user: DEFAULT_USER,
       isPro: true,
+      loading: false,
     };
   }
 
@@ -47,5 +50,6 @@ export function useRequireAuth(): RequireAuthResult {
     isAuthorized: user !== null,
     user: currentUser,
     isPro: currentUser.tier === "pro",
+    loading,
   };
 }

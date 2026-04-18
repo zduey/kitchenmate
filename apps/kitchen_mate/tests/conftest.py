@@ -88,6 +88,7 @@ def settings_with_supabase(client: TestClient) -> Generator[Settings, None, None
     """Override settings with Supabase configuration for HS256 JWT verification."""
     test_settings = Settings(
         _env_file=None,
+        cache_enabled=False,
         supabase_jwt_secret="test-secret-key-at-least-32-characters-long",
         supabase_url=None,
     )
