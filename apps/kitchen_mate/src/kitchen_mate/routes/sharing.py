@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from kitchen_mate.auth import User, get_user
-from kitchen_mate.config import Settings, get_settings
 from kitchen_mate.database.repositories import (
     create_or_get_share,
     get_share_by_token,
@@ -17,14 +16,15 @@ from kitchen_mate.database.repositories import (
 )
 from kitchen_mate.schemas import CreateShareResponse, SaveSharedRecipeResponse, SharedRecipeResponse
 
+
 router = APIRouter()
 
 
 @router.post("/me/recipes/{recipe_id}/share", response_model=CreateShareResponse)
 async def create_share(
     recipe_id: str,
+    request: Request,
     user: Annotated[User, Depends(get_user)],
-    settings: Annotated[Settings, Depends(get_settings)],
 ) -> CreateShareResponse:
     """Generate a shareable link for a recipe."""
     try:
@@ -32,7 +32,8 @@ async def create_share(
     except ValueError:
         raise HTTPException(status_code=404, detail="Recipe not found")
 
-    share_url = f"{settings.app_base_url}/shared/{share.share_token}"
+    base_url = f"{request.url.scheme}://{request.url.netloc}"
+    share_url = f"{base_url}/shared/{share.share_token}"
     return CreateShareResponse(
         share_token=share.share_token,
         share_url=share_url,
