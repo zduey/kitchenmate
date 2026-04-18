@@ -447,9 +447,7 @@ def test_thumbnail_upload_keeps_old_thumbnail_when_db_update_fails(sample_recipe
 
         original_update = me_routes.update_recipe_thumbnail_key
 
-        async def fail_update(
-            user_recipe_id: str, user_id: str, thumbnail_key: str | None
-        ) -> bool:
+        async def fail_update(user_recipe_id: str, user_id: str, thumbnail_key: str | None) -> bool:
             return False
 
         me_routes.update_recipe_thumbnail_key = fail_update
