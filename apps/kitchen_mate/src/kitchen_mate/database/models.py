@@ -127,9 +127,7 @@ class KitchenMemberModel(Base):
     __tablename__ = "kitchen_members"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    kitchen_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("kitchens.id"), nullable=False
-    )
+    kitchen_id: Mapped[str] = mapped_column(String(36), ForeignKey("kitchens.id"), nullable=False)
     user_id: Mapped[str] = mapped_column(Text, nullable=False)
     role: Mapped[str] = mapped_column(Text, nullable=False)  # "admin" | "member"
     joined_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
@@ -148,9 +146,7 @@ class KitchenInviteModel(Base):
     __tablename__ = "kitchen_invites"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    kitchen_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("kitchens.id"), nullable=False
-    )
+    kitchen_id: Mapped[str] = mapped_column(String(36), ForeignKey("kitchens.id"), nullable=False)
     invited_email: Mapped[str] = mapped_column(Text, nullable=False)
     invited_by: Mapped[str] = mapped_column(Text, nullable=False)  # user_id
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
@@ -167,9 +163,7 @@ class KitchenRecipeModel(Base):
     __tablename__ = "kitchen_recipes"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    kitchen_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("kitchens.id"), nullable=False
-    )
+    kitchen_id: Mapped[str] = mapped_column(String(36), ForeignKey("kitchens.id"), nullable=False)
     user_recipe_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("user_recipes.id"), nullable=False
     )

@@ -77,9 +77,7 @@ class KitchenRecipe(BaseModel):
 # =============================================================================
 
 
-def _member_to_schema(
-    model: KitchenMemberModel, email: str | None
-) -> KitchenMember:
+def _member_to_schema(model: KitchenMemberModel, email: str | None) -> KitchenMember:
     return KitchenMember(
         id=model.id,
         kitchen_id=model.kitchen_id,
@@ -191,10 +189,7 @@ async def get_kitchen(kitchen_id: str, user_id: str) -> KitchenDetail | None:
             .where(KitchenMemberModel.kitchen_id == kitchen_id)
             .order_by(KitchenMemberModel.joined_at)
         )
-        members = [
-            _member_to_schema(member, email)
-            for member, email in members_result.all()
-        ]
+        members = [_member_to_schema(member, email) for member, email in members_result.all()]
 
         return KitchenDetail(
             id=kitchen.id,
@@ -455,9 +450,7 @@ async def get_kitchen_recipes(
         return recipes, next_cursor, has_more
 
 
-async def remove_kitchen_recipe(
-    kitchen_id: str, kitchen_recipe_id: str, user_id: str
-) -> bool:
+async def remove_kitchen_recipe(kitchen_id: str, kitchen_recipe_id: str, user_id: str) -> bool:
     """Remove a recipe from a kitchen. Any member can remove."""
     role = await get_member_role(kitchen_id, user_id)
     if role is None:

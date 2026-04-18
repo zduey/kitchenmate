@@ -705,7 +705,9 @@ async def get_user_by_email(email: str) -> DbUser | None:
         row = result.scalar_one_or_none()
         if row is None:
             return None
-        return DbUser(id=row.id, email=row.email, created_at=row.created_at, updated_at=row.updated_at)
+        return DbUser(
+            id=row.id, email=row.email, created_at=row.created_at, updated_at=row.updated_at
+        )
 
 
 # =============================================================================
