@@ -82,6 +82,7 @@ class S3StorageBackend:
 
     def _get_client(self):  # type: ignore[return]
         import boto3  # type: ignore[import-untyped]
+        from botocore.config import Config  # type: ignore[import-untyped]
 
         return boto3.client(
             "s3",
@@ -89,6 +90,7 @@ class S3StorageBackend:
             aws_secret_access_key=self._secret_access_key,
             region_name=self._region,
             endpoint_url=self._endpoint_url,
+            config=Config(signature_version="s3v4"),
         )
 
     async def upload(self, key: str, content: bytes, content_type: str) -> None:
