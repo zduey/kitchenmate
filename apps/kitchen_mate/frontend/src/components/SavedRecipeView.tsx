@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Recipe, UserRecipe } from "../types/recipe";
 import {
   getUserRecipe,
   updateUserRecipe,
   deleteUserRecipe,
+  uploadRecipeThumbnail,
+  deleteRecipeThumbnail,
   RecipeError,
 } from "../api/recipes";
 import { RecipeEditor } from "./RecipeEditor";
@@ -23,6 +25,11 @@ export function SavedRecipeView() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  // Thumbnail state
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
+  const [isThumbnailUploading, setIsThumbnailUploading] = useState(false);
+  const thumbnailInputRef = useRef<HTMLInputElement>(null);
+
   // Edit state
   const [editedRecipe, setEditedRecipe] = useState<Recipe | null>(null);
   const [editedNotes, setEditedNotes] = useState("");
@@ -38,6 +45,7 @@ export function SavedRecipeView() {
         setEditedRecipe(data.recipe);
         setEditedNotes(data.notes || "");
         setEditedTags(data.tags || []);
+        setThumbnailUrl(data.recipe.image || null);
       })
       .catch((err) => {
         const message =
@@ -95,6 +103,34 @@ export function SavedRecipeView() {
     setIsEditing(false);
   };
 
+  const handleThumbnailFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!id || !e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    e.target.value = "";
+    setIsThumbnailUploading(true);
+    try {
+      const result = await uploadRecipeThumbnail(id, file);
+      setThumbnailUrl(result.image_url);
+    } catch (err) {
+      setError(err instanceof RecipeError ? err.message : "Failed to upload thumbnail");
+    } finally {
+      setIsThumbnailUploading(false);
+    }
+  };
+
+  const handleDeleteThumbnail = async () => {
+    if (!id) return;
+    setIsThumbnailUploading(true);
+    try {
+      await deleteRecipeThumbnail(id);
+      setThumbnailUrl(null);
+    } catch (err) {
+      setError(err instanceof RecipeError ? err.message : "Failed to delete thumbnail");
+    } finally {
+      setIsThumbnailUploading(false);
+    }
+  };
+
   const formatTime = (minutes: number): string => {
     if (minutes < 60) return `${minutes} min`;
     const hours = Math.floor(minutes / 60);
@@ -144,9 +180,9 @@ export function SavedRecipeView() {
   if (isEditing) {
     return (
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        {recipe.image && (
+        {thumbnailUrl && (
           <img
-            src={recipe.image}
+            src={thumbnailUrl}
             alt={recipe.title}
             className="w-full h-64 object-cover"
           />
@@ -172,13 +208,64 @@ export function SavedRecipeView() {
   // View mode
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden">
-      {/* Image */}
-      {recipe.image && (
-        <img
-          src={recipe.image}
-          alt={recipe.title}
-          className="w-full h-64 object-cover"
-        />
+      {/* Hidden file input for thumbnail */}
+      <input
+        ref={thumbnailInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleThumbnailFileChange}
+      />
+
+      {/* Image / Thumbnail area */}
+      {thumbnailUrl ? (
+        <div className="relative group">
+          <img
+            src={thumbnailUrl}
+            alt={recipe.title}
+            className="w-full h-64 object-cover"
+          />
+          {!isThumbnailUploading && (
+            <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                onClick={() => thumbnailInputRef.current?.click()}
+                className="p-1.5 bg-white bg-opacity-90 rounded shadow text-brown-medium hover:text-coral"
+                title="Replace thumbnail"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
+              <button
+                onClick={handleDeleteThumbnail}
+                className="p-1.5 bg-white bg-opacity-90 rounded shadow text-brown-medium hover:text-red-600"
+                title="Remove thumbnail"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            </div>
+          )}
+          {isThumbnailUploading && (
+            <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
+              <span className="text-white text-sm">Updating...</span>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="w-full h-32 bg-gray-100 flex items-center justify-center">
+          <button
+            onClick={() => thumbnailInputRef.current?.click()}
+            disabled={isThumbnailUploading}
+            className="flex items-center gap-2 px-3 py-2 text-sm text-brown-medium hover:text-coral border border-gray-300 rounded-lg hover:border-coral"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Add Thumbnail
+          </button>
+        </div>
       )}
 
       <div className="p-6">
@@ -259,6 +346,23 @@ export function SavedRecipeView() {
                   d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
                 />
               </svg>
+            </a>
+          </div>
+        )}
+
+        {/* Source file link for uploaded recipes */}
+        {userRecipe.source_file_url && (
+          <div className="mb-4">
+            <a
+              href={userRecipe.source_file_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center text-sm text-coral hover:text-coral-dark hover:underline"
+            >
+              <svg className="mr-1 h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+              </svg>
+              View Source File
             </a>
           </div>
         )}

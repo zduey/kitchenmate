@@ -2,15 +2,23 @@
 
 from __future__ import annotations
 
-import pytest
+import asyncio
+import tempfile
+from pathlib import Path
 
+import pytest
+from fastapi import HTTPException
+
+from kitchen_mate.auth import DEFAULT_USER
 from kitchen_mate.files import (
+    MAX_DOCUMENT_SIZE,
+    MAX_IMAGE_SIZE,
     FileValidationError,
     detect_file_type,
     validate_file_size,
-    MAX_IMAGE_SIZE,
-    MAX_DOCUMENT_SIZE,
 )
+from kitchen_mate.routes.files import serve_file
+from kitchen_mate.storage.backends import LocalStorageBackend
 
 
 class TestDetectFileType:
@@ -210,3 +218,28 @@ class TestValidateFileSize:
 
         assert "exceeds" in str(exc_info.value)
         assert "20" in str(exc_info.value)  # 20MB limit
+
+
+def test_files_route_blocks_parent_directory_traversal() -> None:
+    """Test the local files route rejects traversal into sibling paths."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        base_path = Path(tmp_dir) / "uploads"
+        base_path.mkdir()
+
+        sibling_dir = Path(tmp_dir) / "uploads_other"
+        sibling_dir.mkdir()
+        (sibling_dir / "secret.txt").write_text("secret", encoding="utf-8")
+
+        storage = LocalStorageBackend(base_path=base_path, base_url="http://testserver/api/files")
+
+        with pytest.raises(HTTPException) as exc_info:
+            asyncio.run(
+                serve_file(
+                    file_key="users/local/../../../uploads_other/secret.txt",
+                    user=DEFAULT_USER,
+                    storage=storage,
+                )
+            )
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail == "Invalid file key"

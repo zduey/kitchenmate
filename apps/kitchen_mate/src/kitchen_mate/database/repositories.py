@@ -47,6 +47,8 @@ class UserRecipe(BaseModel):
     is_modified: bool
     notes: str | None
     tags: list[str] | None
+    source_file_key: str | None = None
+    thumbnail_key: str | None = None
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None = None
@@ -61,6 +63,8 @@ class UserRecipeSummary(BaseModel):
     image_url: str | None
     is_modified: bool
     tags: list[str] | None
+    source_file_key: str | None = None
+    thumbnail_key: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -112,6 +116,8 @@ def _user_recipe_model_to_schema(model: UserRecipeModel) -> UserRecipe:
         is_modified=model.is_modified,
         notes=model.notes,
         tags=tags_data,
+        source_file_key=model.source_file_key,
+        thumbnail_key=model.thumbnail_key,
         created_at=model.created_at,
         updated_at=model.updated_at,
         deleted_at=model.deleted_at,
@@ -371,6 +377,8 @@ async def get_user_recipes(
                     image_url=recipe_data.get("image"),
                     is_modified=user_recipe.is_modified,
                     tags=tags_data,
+                    source_file_key=user_recipe.source_file_key,
+                    thumbnail_key=user_recipe.thumbnail_key,
                     created_at=user_recipe.created_at,
                     updated_at=user_recipe.updated_at,
                 )
@@ -444,6 +452,9 @@ async def save_user_recipe(
     recipe_data: Recipe,
     tags: list[str] | None = None,
     notes: str | None = None,
+    user_recipe_id: str | None = None,
+    source_file_key: str | None = None,
+    thumbnail_key: str | None = None,
 ) -> tuple[UserRecipe, bool]:
     """Save a recipe to user's collection.
 
@@ -455,11 +466,14 @@ async def save_user_recipe(
         recipe_data: The recipe data to copy
         tags: Optional list of tags
         notes: Optional notes
+        user_recipe_id: Optional pre-generated UUID for the user recipe row
+        source_file_key: Optional storage key for the uploaded source file
+        thumbnail_key: Optional storage key for the recipe thumbnail
 
     Returns:
         Tuple of (UserRecipe, is_new) - is_new is False if recipe was already saved or restored
     """
-    user_recipe_id = str(uuid.uuid4())
+    user_recipe_id = user_recipe_id or str(uuid.uuid4())
     recipe_json = recipe_data.model_dump_json()
     tags_json = json.dumps(tags) if tags else None
     now = datetime.now()
@@ -483,7 +497,15 @@ async def save_user_recipe(
                     existing.tags = tags_json
                 if notes:
                     existing.notes = notes
-                # Commit happens via context manager
+
+            if source_file_key is not None:
+                existing.source_file_key = source_file_key
+
+            if thumbnail_key is not None:
+                existing.thumbnail_key = thumbnail_key
+
+            if source_file_key is not None or thumbnail_key is not None:
+                existing.updated_at = now
 
             # Return the existing recipe
             return _user_recipe_model_to_schema(existing), False
@@ -497,6 +519,8 @@ async def save_user_recipe(
             is_modified=False,
             notes=notes,
             tags=tags_json,
+            source_file_key=source_file_key,
+            thumbnail_key=thumbnail_key,
             created_at=now,
             updated_at=now,
         )
@@ -513,6 +537,8 @@ async def save_user_recipe(
             is_modified=False,
             notes=notes,
             tags=tags_list,
+            source_file_key=source_file_key,
+            thumbnail_key=thumbnail_key,
             created_at=now,
             updated_at=now,
         ),
@@ -570,6 +596,33 @@ async def update_user_recipe(
 
         # Commit happens via context manager
         return _user_recipe_model_to_schema(existing)
+
+
+async def update_recipe_thumbnail_key(
+    user_recipe_id: str, user_id: str, thumbnail_key: str | None
+) -> bool:
+    """Update the thumbnail_key for a user recipe.
+
+    Args:
+        user_recipe_id: The user recipe ID
+        user_id: The user's ID (ownership check)
+        thumbnail_key: New thumbnail key, or None to clear
+
+    Returns:
+        True if updated, False if not found or not owned by user
+    """
+    now = datetime.now()
+
+    async with get_session() as session:
+        stmt = (
+            update(UserRecipeModel)
+            .where(UserRecipeModel.id == user_recipe_id)
+            .where(UserRecipeModel.user_id == user_id)
+            .where(UserRecipeModel.deleted_at.is_(None))
+            .values(thumbnail_key=thumbnail_key, updated_at=now)
+        )
+        result = await session.execute(stmt)
+        return result.rowcount > 0
 
 
 async def delete_user_recipe(user_id: str, recipe_id: str) -> bool:

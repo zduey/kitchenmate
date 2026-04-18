@@ -25,6 +25,7 @@ from kitchen_mate.database.repositories import (
     save_user_recipe,
     store_recipe,
     update_recipe,
+    update_recipe_thumbnail_key,
     update_user_recipe,
 )
 
@@ -54,5 +55,6 @@ __all__ = [
     "get_user_recipe_with_lineage",
     "save_user_recipe",
     "update_user_recipe",
+    "update_recipe_thumbnail_key",
     "delete_user_recipe",
 ]

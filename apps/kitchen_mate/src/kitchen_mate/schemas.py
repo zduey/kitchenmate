@@ -186,6 +186,7 @@ class UserRecipeSummaryResponse(BaseModel):
     image_url: str | None = Field(description="Recipe image URL")
     is_modified: bool = Field(description="Whether user has modified the recipe")
     tags: list[str] | None = Field(description="User-defined tags")
+    source_file_url: str | None = Field(default=None, description="URL to the uploaded source file")
     created_at: str = Field(description="When saved to collection")
     updated_at: str = Field(description="Last modification time")
 
@@ -216,6 +217,7 @@ class GetUserRecipeResponse(BaseModel):
     tags: list[str] | None = Field(description="User-defined tags")
     recipe: Recipe = Field(description="The recipe data")
     lineage: RecipeLineage = Field(description="Source recipe information")
+    source_file_url: str | None = Field(default=None, description="URL to the uploaded source file")
     created_at: str = Field(description="When saved to collection")
     updated_at: str = Field(description="Last modification time")
 
@@ -245,3 +247,9 @@ class UpdateUserRecipeResponse(BaseModel):
     id: str = Field(description="User recipe ID")
     is_modified: bool = Field(description="Whether the recipe has been modified")
     updated_at: str = Field(description="Last modification time")
+
+
+class ThumbnailUploadResponse(BaseModel):
+    """Response body for uploading a recipe thumbnail."""
+
+    image_url: str = Field(description="URL to the uploaded thumbnail")

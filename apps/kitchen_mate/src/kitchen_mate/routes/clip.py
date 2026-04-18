@@ -57,7 +57,7 @@ async def clip_recipe(
 
     try:
         # Try cache first (unless force_refresh)
-        if settings.cache_enabled and not clip_request.force_refresh:
+        if settings.database.enabled and not clip_request.force_refresh:
             cached = await _get_from_cache(url, clip_request.force_llm)
             if cached:
                 return ClipResponse(recipe=cached.recipe, cached=True)
@@ -67,14 +67,14 @@ async def clip_recipe(
             url=url,
             timeout=clip_request.timeout,
             use_llm_fallback=clip_request.use_llm_fallback,
-            api_key=settings.anthropic_api_key,
+            api_key=settings.anthropic.api_key,
             llm_permitted=can_use_ai,
             force_llm=clip_request.force_llm,
-            check_content_changed=clip_request.force_refresh and settings.cache_enabled,
+            check_content_changed=clip_request.force_refresh and settings.database.enabled,
         )
 
         # Cache the result
-        if settings.cache_enabled:
+        if settings.database.enabled:
             await _save_to_cache(url, recipe, content_hash, parsed_with)
 
         return ClipResponse(recipe=recipe, cached=False, content_changed=content_changed)
@@ -129,7 +129,7 @@ async def clip_recipe_from_upload(
     - Single-tenant: Available to all (pro tier by default)
     - Multi-tenant: Requires pro subscription
     """
-    if not settings.anthropic_api_key:
+    if not settings.anthropic.api_key:
         raise HTTPException(
             status_code=503,
             detail="LLM extraction is not configured.",
@@ -157,7 +157,7 @@ async def clip_recipe_from_upload(
             recipe = await asyncio.to_thread(
                 parse_recipe_from_image,
                 temp_path,
-                api_key=settings.anthropic_api_key,
+                api_key=settings.anthropic.api_key,
             )
             parsing_method = Parser.llm_image
         else:
@@ -166,7 +166,7 @@ async def clip_recipe_from_upload(
             recipe = await asyncio.to_thread(
                 parse_recipe_from_document,
                 temp_path,
-                api_key=settings.anthropic_api_key,
+                api_key=settings.anthropic.api_key,
             )
             parsing_method = Parser.llm_document
 
