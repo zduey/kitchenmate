@@ -68,4 +68,4 @@ ENV STORAGE_LOCAL_PATH=/data/uploads
 EXPOSE $PORT
 
 # Run migrations and start the application (shell form to expand $PORT)
-CMD uv run alembic upgrade head && uv run uvicorn kitchen_mate.main:app --host 0.0.0.0 --port $PORT
+CMD uv run alembic upgrade head && uv run uvicorn kitchen_mate.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips="*"
