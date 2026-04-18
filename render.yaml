@@ -19,8 +19,8 @@ services:
         value: /data/kitchenmate.db
       - key: ANTHROPIC_API_KEY
         sync: false  # Set manually in Render dashboard (secret)
-      - key: LLM_ALLOWED_IPS
-        sync: false  # Set manually in Render dashboard
+      - key: PRO_USER_IDS
+        sync: false  # Comma-separated Supabase user IDs with Pro tier access
       - key: CORS_ORIGINS
         sync: false  # Set manually in Render dashboard
       # Multi-tenant mode (Supabase authentication)
@@ -29,3 +29,18 @@ services:
         sync: false  # Set manually in Render dashboard (enables multi-tenant)
       - key: SUPABASE_ANON_KEY
         sync: false  # Set manually in Render dashboard (frontend auth client)
+      # File storage
+      - key: STORAGE_BACKEND
+        value: s3
+      - key: STORAGE_PUBLIC_BASE_URL
+        sync: false  # Optional: public R2 bucket URL (omit to use presigned URLs)
+      - key: S3_BUCKET
+        sync: false  # Set manually in Render dashboard (secret)
+      - key: S3_ACCESS_KEY_ID
+        sync: false  # Set manually in Render dashboard (secret)
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false  # Set manually in Render dashboard (secret)
+      - key: S3_REGION
+        value: us-east-1
+      - key: S3_ENDPOINT_URL
+        sync: false  # Required for R2/MinIO: e.g. https://<account>.r2.cloudflarestorage.com

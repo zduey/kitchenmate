@@ -63,6 +63,8 @@ RUN uv sync --frozen --no-dev
 
 # Default port (Render sets PORT environment variable)
 ENV PORT=8000
+# Default local storage path to persistent disk; overridden in production by STORAGE_BACKEND=s3
+ENV STORAGE_LOCAL_PATH=/data/uploads
 EXPOSE $PORT
 
 # Run migrations and start the application (shell form to expand $PORT)
