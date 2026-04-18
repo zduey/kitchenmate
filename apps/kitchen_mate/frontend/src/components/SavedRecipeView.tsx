@@ -272,59 +272,57 @@ export function SavedRecipeView() {
 
       <div className="p-6">
         {/* Header with title and actions */}
-        <div className="flex justify-between items-start mb-4">
-          <div className="flex-1">
-            <h2 className="text-2xl font-bold text-brown-dark">{recipe.title}</h2>
-
-            {userRecipe.is_modified && (
-              <span className="inline-block mt-2 px-2 py-1 bg-coral bg-opacity-10 text-coral-dark text-xs rounded">
-                Modified from original
-              </span>
-            )}
-          </div>
-
-          <div className="flex gap-2 ml-4">
-            {id && <ShareButton recipeId={id} />}
-            {id && <ShareToKitchenButton recipeId={id} />}
-            <button
-              onClick={() => setIsEditing(true)}
-              className="p-2 text-brown-medium hover:text-coral hover:bg-coral hover:bg-opacity-10 rounded"
-              title="Edit recipe"
-            >
-              <svg
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+        <div className="mb-4">
+          <div className="flex justify-between items-start gap-2">
+            <h2 className="text-2xl font-bold text-brown-dark leading-tight">{recipe.title}</h2>
+            <div className="flex gap-2 shrink-0">
+              {id && <ShareButton recipeId={id} />}
+              {id && <ShareToKitchenButton recipeId={id} />}
+              <button
+                onClick={() => setIsEditing(true)}
+                className="p-2 text-brown-medium hover:text-coral hover:bg-coral hover:bg-opacity-10 rounded"
+                title="Edit recipe"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                />
-              </svg>
-            </button>
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              className="p-2 text-brown-medium hover:text-red-600 hover:bg-red-50 rounded"
-              title="Delete recipe"
-            >
-              <svg
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                  />
+                </svg>
+              </button>
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="p-2 text-brown-medium hover:text-red-600 hover:bg-red-50 rounded"
+                title="Delete recipe"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                />
-              </svg>
-            </button>
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
+                </svg>
+              </button>
+            </div>
           </div>
+          {userRecipe.is_modified && (
+            <span className="inline-block mt-2 px-2 py-1 bg-coral bg-opacity-10 text-coral-dark text-xs rounded">
+              Modified from original
+            </span>
+          )}
         </div>
 
         {/* Source URL */}
@@ -468,7 +466,7 @@ export function SavedRecipeView() {
         </div>
 
         {/* Footer */}
-        <div className="flex justify-between items-center pt-4 border-t border-gray-200">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 pt-4 border-t border-gray-200">
           <Link
             to="/"
             className="text-coral hover:text-coral-dark flex items-center"

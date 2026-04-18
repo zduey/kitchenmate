@@ -44,9 +44,9 @@ export function Header({ onSignInClick }: HeaderProps) {
 
   return (
     <header className="bg-white shadow-sm">
-      <div className="max-w-5xl mx-auto px-4 py-4 flex justify-between items-center">
-        <div className="flex items-center gap-8">
-          {/* Logo */}
+      <div className="max-w-5xl mx-auto px-4 py-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+        {/* Row 1 (mobile): Logo + Auth */}
+        <div className="flex justify-between items-center sm:gap-8">
           <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <BookmarkIcon className="w-5 h-6" />
             <span className="font-serif text-2xl text-brown-dark tracking-tight">
@@ -55,8 +55,29 @@ export function Header({ onSignInClick }: HeaderProps) {
             </span>
           </Link>
 
-          {/* Navigation */}
-          <nav className="flex items-center gap-6">
+          {/* Auth — visible on mobile inline with logo */}
+          <div className="flex items-center gap-3 sm:hidden">
+            {isAuthEnabled && !loading && (
+              <>
+                {user ? (
+                  <UserDropdown user={user} onSignOut={handleSignOut} />
+                ) : (
+                  <button
+                    onClick={onSignInClick}
+                    title="Save recipes, build collections, and more"
+                    className="px-3 py-1.5 text-sm text-coral hover:bg-coral hover:bg-opacity-10 rounded-lg transition-colors"
+                  >
+                    Sign In
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Row 2 (mobile): Nav + Auth (desktop) */}
+        <div className="flex items-center justify-between sm:justify-end sm:gap-6">
+          <nav className="flex items-center gap-4">
             {isAuthorized ? (
               <Link
                 to="/"
@@ -77,25 +98,25 @@ export function Header({ onSignInClick }: HeaderProps) {
 
             <AddRecipeDropdown variant="button" />
           </nav>
-        </div>
 
-        {/* Auth */}
-        <div className="flex items-center gap-4">
-          {isAuthEnabled && !loading && (
-            <>
-              {user ? (
-                <UserDropdown user={user} onSignOut={handleSignOut} />
-              ) : (
-                <button
-                  onClick={onSignInClick}
-                  title="Save recipes, build collections, and more"
-                  className="px-4 py-2 text-sm text-coral hover:bg-coral hover:bg-opacity-10 rounded-lg transition-colors"
-                >
-                  Sign In
-                </button>
-              )}
-            </>
-          )}
+          {/* Auth — visible on desktop only */}
+          <div className="hidden sm:flex items-center gap-4">
+            {isAuthEnabled && !loading && (
+              <>
+                {user ? (
+                  <UserDropdown user={user} onSignOut={handleSignOut} />
+                ) : (
+                  <button
+                    onClick={onSignInClick}
+                    title="Save recipes, build collections, and more"
+                    className="px-4 py-2 text-sm text-coral hover:bg-coral hover:bg-opacity-10 rounded-lg transition-colors"
+                  >
+                    Sign In
+                  </button>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
     </header>

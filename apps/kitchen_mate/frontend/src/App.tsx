@@ -144,18 +144,18 @@ function HomePage() {
   // Authenticated users see their recipe collection
   return (
     <div>
-      <div className="flex items-center gap-6 mb-6">
-        <div className="shrink-0">
-          <h2 className="text-xl font-semibold text-brown-dark">My Recipes</h2>
-          <p className="text-brown-medium">{getSubtitle()}</p>
+      <div className="mb-6 space-y-3">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-xl font-semibold text-brown-dark">My Recipes</h2>
+            <p className="text-brown-medium">{getSubtitle()}</p>
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            <ViewModeToggle mode={viewMode} onChange={handleViewChange} />
+            <AddRecipeDropdown variant="plus" />
+          </div>
         </div>
-        <div className="flex-1 max-w-md mx-auto">
-          <SearchInput value={searchQuery} onChange={handleSearchChange} />
-        </div>
-        <div className="flex items-center gap-6 shrink-0">
-          <ViewModeToggle mode={viewMode} onChange={handleViewChange} />
-        </div>
-        <AddRecipeDropdown variant="plus" />
+        <SearchInput value={searchQuery} onChange={handleSearchChange} />
       </div>
 
       {(tagFilter || searchQuery) && (
