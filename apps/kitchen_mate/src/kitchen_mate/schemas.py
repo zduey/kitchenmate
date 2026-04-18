@@ -339,6 +339,18 @@ class AddMemberResponse(BaseModel):
     message: str = Field(description="Human-readable status message")
 
 
+class UpdateMemberRoleRequest(BaseModel):
+    """Request body for updating a kitchen member's role."""
+
+    role: str = Field(description="New role: 'admin' or 'member'")
+
+    @model_validator(mode="after")
+    def validate_role(self) -> "UpdateMemberRoleRequest":
+        if self.role not in ("admin", "member"):
+            raise ValueError("role must be 'admin' or 'member'")
+        return self
+
+
 class ShareToKitchenRequest(BaseModel):
     """Request body for sharing a recipe with a kitchen."""
 

@@ -97,6 +97,26 @@ export async function listKitchenRecipes(
   return handleResponse<ListKitchenRecipesResponse>(res);
 }
 
+export async function updateMemberRole(
+  kitchenId: string,
+  userId: string,
+  role: "admin" | "member"
+): Promise<void> {
+  const res = await fetch(
+    `/api/kitchens/${encodeURIComponent(kitchenId)}/members/${encodeURIComponent(userId)}`,
+    {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role }),
+    }
+  );
+  if (!res.ok && res.status !== 204) {
+    const body = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new KitchenError(body.detail ?? res.statusText, res.status);
+  }
+}
+
 export async function removeKitchenRecipe(
   kitchenId: string,
   kitchenRecipeId: string

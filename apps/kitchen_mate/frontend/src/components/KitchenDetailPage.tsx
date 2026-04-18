@@ -5,6 +5,7 @@ import {
   listKitchenRecipes,
   addMember,
   removeMember,
+  updateMemberRole,
   removeKitchenRecipe,
   KitchenError,
 } from "../api/kitchens";
@@ -28,6 +29,7 @@ export function KitchenDetailPage() {
   const [inviteMessage, setInviteMessage] = useState<string | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [removingMember, setRemovingMember] = useState<string | null>(null);
+  const [changingRole, setChangingRole] = useState<string | null>(null);
 
   // Recipe management
   const [removingRecipe, setRemovingRecipe] = useState<string | null>(null);
@@ -63,6 +65,28 @@ export function KitchenDetailPage() {
       setInviteError(err instanceof KitchenError ? err.message : "Failed to add member");
     } finally {
       setInviting(false);
+    }
+  };
+
+  const handleChangeRole = async (userId: string, newRole: "admin" | "member") => {
+    if (!id) return;
+    setChangingRole(userId);
+    try {
+      await updateMemberRole(id, userId, newRole);
+      setKitchen((prev) =>
+        prev
+          ? {
+              ...prev,
+              members: prev.members.map((m) =>
+                m.user_id === userId ? { ...m, role: newRole } : m
+              ),
+            }
+          : prev
+      );
+    } catch (err) {
+      setError(err instanceof KitchenError ? err.message : "Failed to update role");
+    } finally {
+      setChangingRole(null);
     }
   };
 
@@ -140,13 +164,33 @@ export function KitchenDetailPage() {
                 )}
               </div>
               {isAdmin && member.user_id !== user?.id && (
-                <button
-                  onClick={() => handleRemoveMember(member.user_id)}
-                  disabled={removingMember === member.user_id}
-                  className="text-xs text-red-500 hover:text-red-700 disabled:opacity-50"
-                >
-                  {removingMember === member.user_id ? "Removing..." : "Remove"}
-                </button>
+                <div className="flex items-center gap-2">
+                  {member.user_id !== kitchen.created_by && (
+                    <button
+                      onClick={() =>
+                        handleChangeRole(
+                          member.user_id,
+                          member.role === "admin" ? "member" : "admin"
+                        )
+                      }
+                      disabled={changingRole === member.user_id}
+                      className="text-xs text-coral hover:text-coral-dark disabled:opacity-50"
+                    >
+                      {changingRole === member.user_id
+                        ? "Updating..."
+                        : member.role === "admin"
+                          ? "Make member"
+                          : "Make admin"}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleRemoveMember(member.user_id)}
+                    disabled={removingMember === member.user_id}
+                    className="text-xs text-red-500 hover:text-red-700 disabled:opacity-50"
+                  >
+                    {removingMember === member.user_id ? "Removing..." : "Remove"}
+                  </button>
+                </div>
               )}
             </li>
           ))}
