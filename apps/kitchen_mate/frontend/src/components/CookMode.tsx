@@ -168,7 +168,7 @@ export function CookMode({ recipe, onClose }: CookModeProps) {
 
           {/* Step text */}
           <div className="flex-1 flex items-center justify-center px-6 py-8">
-            <p className="font-serif text-xl sm:text-2xl text-brown-dark leading-relaxed text-center">
+            <p className="font-serif text-xl sm:text-2xl text-brown-dark leading-relaxed text-left">
               {recipe.instructions[currentStep]}
             </p>
           </div>

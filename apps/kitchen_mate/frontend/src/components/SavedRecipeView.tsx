@@ -278,8 +278,6 @@ export function SavedRecipeView() {
           <div className="flex justify-between items-start gap-2">
             <h2 className="text-2xl font-bold text-brown-dark leading-tight">{recipe.title}</h2>
             <div className="flex gap-2 shrink-0">
-              {id && <ShareButton recipeId={id} />}
-              {id && <ShareToKitchenButton recipeId={id} />}
               <button
                 onClick={() => setCookModeOpen(true)}
                 className="p-2 text-brown-medium hover:text-coral hover:bg-coral hover:bg-opacity-10 rounded"
@@ -299,6 +297,8 @@ export function SavedRecipeView() {
                   />
                 </svg>
               </button>
+              {id && <ShareToKitchenButton recipeId={id} />}
+              {id && <ShareButton recipeId={id} />}
               <button
                 onClick={() => setIsEditing(true)}
                 className="p-2 text-brown-medium hover:text-coral hover:bg-coral hover:bg-opacity-10 rounded"
