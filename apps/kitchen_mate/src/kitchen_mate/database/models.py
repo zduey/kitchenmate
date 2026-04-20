@@ -177,3 +177,23 @@ class KitchenRecipeModel(Base):
         Index("uq_kitchen_recipe", "kitchen_id", "user_recipe_id", unique=True),
         Index("idx_kitchen_recipes_kitchen_id", "kitchen_id"),
     )
+
+
+class ClipRequestLogModel(Base):
+    """Log of every /api/clip request for usage tracking."""
+
+    __tablename__ = "clip_request_logs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ip_address: Mapped[str | None] = mapped_column(Text, nullable=True)
+    requested_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    method: Mapped[str | None] = mapped_column(Text, nullable=True)
+    succeeded: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    error_detail: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON blob
+
+    __table_args__ = (
+        Index("idx_clip_request_logs_user_id", "user_id"),
+        Index("idx_clip_request_logs_requested_at", "requested_at"),
+        Index("idx_clip_request_logs_user_requested", "user_id", "requested_at"),
+    )

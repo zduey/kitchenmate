@@ -84,6 +84,18 @@ def settings_pro_tier(client: TestClient) -> Generator[None, None, None]:
 
 
 @pytest.fixture
+def client_with_db() -> Generator[TestClient, None, None]:
+    """Test client with database enabled (for request tracking tests)."""
+    test_settings = Settings(
+        _env_file=None, cache_enabled=True, supabase_jwt_secret=None, supabase_url=None
+    )
+    app.dependency_overrides[get_settings] = lambda: test_settings
+    with TestClient(app) as test_client:
+        yield test_client
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
 def settings_with_supabase(client: TestClient) -> Generator[Settings, None, None]:
     """Override settings with Supabase configuration for HS256 JWT verification."""
     test_settings = Settings(

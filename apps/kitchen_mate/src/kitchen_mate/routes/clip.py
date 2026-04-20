@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 
 from recipe_clipper.exceptions import (
     LLMError,
@@ -17,7 +18,7 @@ from recipe_clipper.exceptions import (
 )
 from recipe_clipper.models import Recipe
 
-from kitchen_mate.auth import User
+from kitchen_mate.auth import User, get_current_user_optional
 from kitchen_mate.authorization import (
     Permission,
     TierInfo,
@@ -27,7 +28,7 @@ from kitchen_mate.authorization import (
     require_permission,
 )
 from kitchen_mate.config import Settings, get_settings
-from kitchen_mate.database import get_cached_recipe, store_recipe, update_recipe
+from kitchen_mate.database import get_cached_recipe, log_clip_request, store_recipe, update_recipe
 from kitchen_mate.extraction import LLMNotAllowedError, extract_recipe
 from kitchen_mate.files import FileValidationError, process_upload, save_to_temp_file
 from kitchen_mate.schemas import ClipRequest, ClipResponse, ClipUploadResponse, FileInfo, Parser
@@ -38,11 +39,21 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _get_client_ip(request: Request) -> str | None:
+    """Extract the real client IP, checking X-Forwarded-For for proxy setups."""
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    return request.client.host if request.client else None
+
+
 @router.post("/clip")
 async def clip_recipe(
     clip_request: ClipRequest,
+    request: Request,
     settings: Annotated[Settings, Depends(get_settings)],
     tier_info: Annotated[TierInfo, Depends(get_tier_info)],
+    user: Annotated[User | None, Depends(get_current_user_optional)],
 ) -> ClipResponse:
     """Extract a recipe from a URL."""
     url = str(clip_request.url)
@@ -55,11 +66,19 @@ async def clip_recipe(
     if clip_request.force_llm and not can_use_ai:
         raise UpgradeRequiredError(feature=Permission.CLIP_AI.value)
 
+    requested_at = datetime.now()
+    ip_address = _get_client_ip(request)
+    method: str | None = None
+    succeeded: bool = False
+    error_detail: dict | None = None
+
     try:
         # Try cache first (unless force_refresh)
         if settings.database.enabled and not clip_request.force_refresh:
             cached = await _get_from_cache(url, clip_request.force_llm)
             if cached:
+                method = "cache"
+                succeeded = True
                 return ClipResponse(recipe=cached.recipe, cached=True)
 
         # Extract the recipe
@@ -72,25 +91,52 @@ async def clip_recipe(
             force_llm=clip_request.force_llm,
             check_content_changed=clip_request.force_refresh and settings.database.enabled,
         )
+        method = parsed_with.value
 
         # Cache the result
         if settings.database.enabled:
             await _save_to_cache(url, recipe, content_hash, parsed_with)
 
+        succeeded = True
         return ClipResponse(recipe=recipe, cached=False, content_changed=content_changed)
 
     except RecipeNotFoundError as error:
-        raise HTTPException(
-            status_code=404, detail="No recipe found at the requested url"
-        ) from error
+        error_detail = {"status_code": 404, "message": "No recipe found at the requested url"}
+        raise HTTPException(status_code=404, detail=error_detail["message"]) from error
     except NetworkError as error:
-        raise HTTPException(status_code=502, detail="Failed to fetch URL") from error
+        logger.error("Failed to fetch recipe URL '%s': %s", url, error)
+        error_detail = {
+            "status_code": 502,
+            "message": "Failed to fetch recipe. The site may be unavailable or blocking access.",
+        }
+        raise HTTPException(
+            status_code=502,
+            detail={**error_detail, "url": url, "error": str(error)},
+        ) from error
     except LLMNotAllowedError as error:
+        error_detail = {"status_code": 403, "message": "LLM extraction not permitted for this user"}
         raise UpgradeRequiredError(feature=Permission.CLIP_AI.value) from error
-    except (RecipeParsingError, LLMError) as error:
+    except (RecipeParsingError, LLMError, RecipeClipperError) as error:
+        error_detail = {"status_code": 500, "message": "Failed to parse recipe"}
         raise HTTPException(status_code=500, detail="Failed to parse recipe") from error
-    except RecipeClipperError as error:
-        raise HTTPException(status_code=500, detail="Failed to parse recipe") from error
+
+    finally:
+        if settings.database.enabled:
+            try:
+                await log_clip_request(
+                    user_id=user.id if user is not None else None,
+                    ip_address=ip_address,
+                    requested_at=requested_at,
+                    method=method,
+                    succeeded=succeeded,
+                    error_detail=error_detail,
+                )
+            except Exception:
+                logger.warning(
+                    "Failed to log clip request for user_id=%s",
+                    user.id if user is not None else None,
+                    exc_info=True,
+                )
 
 
 async def _get_from_cache(url: str, force_llm: bool):
