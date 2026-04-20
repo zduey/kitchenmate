@@ -13,6 +13,7 @@ from kitchen_mate.database.engine import (
 )
 from kitchen_mate.database.models import (
     Base,
+    ClipRequestLogModel,
     KitchenInviteModel,
     KitchenMemberModel,
     KitchenModel,
@@ -39,6 +40,7 @@ from kitchen_mate.database.repositories import (
     get_user_recipe_with_lineage,
     get_user_recipes,
     hash_content,
+    log_clip_request,
     revoke_share,
     save_user_recipe,
     store_recipe,
@@ -58,6 +60,7 @@ __all__ = [
     "get_session_factory",
     # Models
     "Base",
+    "ClipRequestLogModel",
     "RecipeModel",
     "UserRecipeModel",
     "UserModel",
@@ -91,4 +94,5 @@ __all__ = [
     "get_share_for_user_recipe",
     "revoke_share",
     "get_user_recipe_by_id_no_auth",
+    "log_clip_request",
 ]
