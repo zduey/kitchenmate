@@ -21,7 +21,7 @@ from kitchen_mate.database import (
 )
 from kitchen_mate.main import app
 from kitchen_mate.schemas import Parser
-from kitchen_mate.storage import StorageBackend, get_storage
+from kitchen_mate.storage import get_storage
 from recipe_clipper.models import Ingredient, Recipe
 
 if TYPE_CHECKING:
