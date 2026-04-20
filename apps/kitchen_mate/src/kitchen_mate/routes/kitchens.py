@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from kitchen_mate.auth import User, get_user
 from kitchen_mate.config import Settings, get_settings
+from kitchen_mate.storage import StorageBackend, get_storage
 from kitchen_mate.database.kitchen_repositories import (
     add_or_invite_member,
     create_kitchen,
@@ -215,6 +216,7 @@ async def share_recipe(
     kitchen_id: str,
     body: ShareToKitchenRequest,
     user: Annotated[User, Depends(get_user)],
+    storage: Annotated[StorageBackend, Depends(get_storage)],
 ) -> KitchenRecipeResponse:
     """Share a recipe with a kitchen (any member)."""
     await _require_member(kitchen_id, user)
@@ -224,6 +226,7 @@ async def share_recipe(
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
 
+    image_url = storage.get_url(kr.thumbnail_key) if kr.thumbnail_key else kr.image_url
     return KitchenRecipeResponse(
         id=kr.id,
         kitchen_id=kr.kitchen_id,
@@ -231,7 +234,7 @@ async def share_recipe(
         shared_by=kr.shared_by,
         shared_at=kr.shared_at.isoformat(),
         title=kr.title,
-        image_url=kr.image_url,
+        image_url=image_url,
         tags=kr.tags,
     )
 
@@ -244,6 +247,7 @@ async def share_recipe(
 async def list_kitchen_recipes(
     kitchen_id: str,
     user: Annotated[User, Depends(get_user)],
+    storage: Annotated[StorageBackend, Depends(get_storage)],
     cursor: str | None = None,
     limit: int = 50,
 ) -> ListKitchenRecipesResponse:
@@ -266,7 +270,7 @@ async def list_kitchen_recipes(
                 shared_by=r.shared_by,
                 shared_at=r.shared_at.isoformat(),
                 title=r.title,
-                image_url=r.image_url,
+                image_url=storage.get_url(r.thumbnail_key) if r.thumbnail_key else r.image_url,
                 tags=r.tags,
             )
             for r in recipes

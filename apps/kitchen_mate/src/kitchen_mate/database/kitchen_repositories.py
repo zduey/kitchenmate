@@ -69,6 +69,7 @@ class KitchenRecipe(BaseModel):
     shared_at: datetime
     title: str
     image_url: str | None
+    thumbnail_key: str | None
     tags: list[str] | None
 
 
@@ -405,6 +406,7 @@ async def share_recipe_to_kitchen(
         shared_at=now,
         title=recipe_data.get("title", "Untitled"),
         image_url=recipe_data.get("image"),
+        thumbnail_key=user_recipe.thumbnail_key,
         tags=tags_data,
     )
 
@@ -457,6 +459,7 @@ async def get_kitchen_recipes(
                     shared_at=kr.shared_at,
                     title=recipe_data.get("title", "Untitled"),
                     image_url=recipe_data.get("image"),
+                    thumbnail_key=user_recipe.thumbnail_key,
                     tags=tags_data,
                 )
             )
