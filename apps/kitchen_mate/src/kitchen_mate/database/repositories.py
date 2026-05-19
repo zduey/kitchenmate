@@ -15,7 +15,13 @@ from sqlalchemy import delete, select, update
 from recipe_clipper.models import Recipe
 
 from kitchen_mate.database.engine import get_session
-from kitchen_mate.database.models import RecipeModel, RecipeShareModel, UserModel, UserRecipeModel
+from kitchen_mate.database.models import (
+    ClipRequestLogModel,
+    RecipeModel,
+    RecipeShareModel,
+    UserModel,
+    UserRecipeModel,
+)
 from kitchen_mate.schemas import Parser
 
 
@@ -846,3 +852,30 @@ async def get_user_recipe_by_id_no_auth(user_recipe_id: str) -> UserRecipe | Non
         if row is None:
             return None
         return _user_recipe_model_to_schema(row)
+
+
+# =============================================================================
+# Clip Request Log Functions
+# =============================================================================
+
+
+async def log_clip_request(
+    user_id: str | None,
+    ip_address: str | None,
+    requested_at: datetime,
+    method: str | None,
+    succeeded: bool,
+    error_detail: dict | None = None,
+) -> None:
+    """Record a single /api/clip request for usage tracking."""
+    async with get_session() as session:
+        model = ClipRequestLogModel(
+            id=str(uuid.uuid4()),
+            user_id=user_id,
+            ip_address=ip_address,
+            requested_at=requested_at,
+            method=method,
+            succeeded=succeeded,
+            error_detail=json.dumps(error_detail) if error_detail is not None else None,
+        )
+        session.add(model)

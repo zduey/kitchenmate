@@ -59,7 +59,7 @@ export interface ConvertRequest {
 }
 
 export interface ApiError {
-  detail: string | AuthorizationErrorDetail;
+  detail: unknown;
 }
 
 export interface AuthorizationErrorDetail {
@@ -82,17 +82,23 @@ export function isAuthorizationError(
 }
 
 /**
- * Extract error message from ApiError.detail, handling both string and object formats.
+ * Extract error message from ApiError.detail, handling string, authorization error,
+ * and structured error objects (e.g. {message, url, error}).
  */
-export function getErrorMessage(
-  detail: string | AuthorizationErrorDetail,
-  fallback: string
-): string {
+export function getErrorMessage(detail: unknown, fallback: string): string {
   if (typeof detail === "string") {
     return detail;
   }
   if (isAuthorizationError(detail)) {
     return detail.message;
+  }
+  if (
+    typeof detail === "object" &&
+    detail !== null &&
+    "message" in detail &&
+    typeof (detail as Record<string, unknown>).message === "string"
+  ) {
+    return (detail as Record<string, unknown>).message as string;
   }
   return fallback;
 }

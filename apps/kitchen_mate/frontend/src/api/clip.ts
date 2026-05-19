@@ -8,6 +8,7 @@ import {
   ApiError,
   isAuthorizationError,
   getErrorMessage,
+  AuthorizationErrorDetail,
 } from "../types/recipe";
 
 const API_BASE = "/api";
@@ -57,16 +58,18 @@ export async function clipRecipe(url: string, forceLlm = false): Promise<Recipe>
   if (!response.ok) {
     const error: ApiError = await response.json();
     if (isAuthorizationError(error.detail)) {
+      const detail = error.detail as AuthorizationErrorDetail;
       throw new ClipError(
-        error.detail.message,
+        detail.message,
         response.status,
-        error.detail.error_code,
-        error.detail.feature
+        detail.error_code,
+        detail.feature
       );
     }
-    const message =
-      typeof error.detail === "string" ? error.detail : "Failed to clip recipe";
-    throw new ClipError(message, response.status);
+    throw new ClipError(
+      getErrorMessage(error.detail, "Failed to clip recipe"),
+      response.status
+    );
   }
 
   const data: ClipResponse = await response.json();
@@ -86,18 +89,18 @@ export async function uploadRecipe(file: File): Promise<ClipUploadResponse> {
   if (!response.ok) {
     const error: ApiError = await response.json();
     if (isAuthorizationError(error.detail)) {
+      const detail = error.detail as AuthorizationErrorDetail;
       throw new ClipError(
-        error.detail.message,
+        detail.message,
         response.status,
-        error.detail.error_code,
-        error.detail.feature
+        detail.error_code,
+        detail.feature
       );
     }
-    const message =
-      typeof error.detail === "string"
-        ? error.detail
-        : "Failed to upload recipe";
-    throw new ClipError(message, response.status);
+    throw new ClipError(
+      getErrorMessage(error.detail, "Failed to upload recipe"),
+      response.status
+    );
   }
 
   return response.json();
