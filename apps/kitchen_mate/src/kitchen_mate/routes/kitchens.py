@@ -6,6 +6,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from recipe_clipper.models import Recipe as RecipeData
+
 from kitchen_mate.auth import User, get_user
 from kitchen_mate.config import Settings, get_settings
 from kitchen_mate.storage import StorageBackend, get_storage
@@ -13,6 +15,7 @@ from kitchen_mate.database.kitchen_repositories import (
     add_or_invite_member,
     create_kitchen,
     get_kitchen,
+    get_kitchen_recipe_with_lineage,
     get_kitchen_recipes,
     get_member_role,
     get_user_kitchens,
@@ -25,11 +28,13 @@ from kitchen_mate.schemas import (
     AddMemberRequest,
     AddMemberResponse,
     CreateKitchenRequest,
+    GetUserRecipeResponse,
     KitchenDetailResponse,
     KitchenMemberResponse,
     KitchenRecipeResponse,
     KitchenSummaryResponse,
     ListKitchenRecipesResponse,
+    RecipeLineage,
     ShareToKitchenRequest,
     UpdateMemberRoleRequest,
 )
@@ -277,6 +282,51 @@ async def list_kitchen_recipes(
         ],
         next_cursor=next_cursor,
         has_more=has_more,
+    )
+
+
+@router.get(
+    "/kitchens/{kitchen_id}/recipes/{kitchen_recipe_id}",
+    response_model=GetUserRecipeResponse,
+    dependencies=[Depends(_require_multi_tenant)],
+)
+async def get_kitchen_recipe(
+    kitchen_id: str,
+    kitchen_recipe_id: str,
+    user: Annotated[User, Depends(get_user)],
+    storage: Annotated[StorageBackend, Depends(get_storage)],
+) -> GetUserRecipeResponse:
+    """Get full details of a recipe shared with a kitchen (any member)."""
+    await _require_member(kitchen_id, user)
+
+    result = await get_kitchen_recipe_with_lineage(kitchen_id, kitchen_recipe_id, user.id)
+
+    if result is None:
+        raise HTTPException(status_code=404, detail="Recipe not found")
+
+    user_recipe, source_recipe = result
+
+    recipe = user_recipe.recipe
+    if user_recipe.thumbnail_key:
+        recipe = RecipeData(**{**recipe.model_dump(), "image": storage.get_url(user_recipe.thumbnail_key)})
+
+    return GetUserRecipeResponse(
+        id=user_recipe.id,
+        source_url=source_recipe.source_url,
+        parsing_method=source_recipe.parsing_method,
+        is_modified=user_recipe.is_modified,
+        notes=user_recipe.notes,
+        tags=user_recipe.tags,
+        recipe=recipe,
+        lineage=RecipeLineage(
+            recipe_id=source_recipe.id,
+            parsed_at=source_recipe.created_at.isoformat(),
+        ),
+        source_file_url=storage.get_url(user_recipe.source_file_key)
+        if user_recipe.source_file_key
+        else None,
+        created_at=user_recipe.created_at.isoformat(),
+        updated_at=user_recipe.updated_at.isoformat(),
     )
 
 

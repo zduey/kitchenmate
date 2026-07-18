@@ -4,17 +4,18 @@ import type { KitchenRecipe } from "../types/kitchen";
 
 interface KitchenRecipeListItemProps {
   recipe: KitchenRecipe;
+  kitchenId: string;
   kitchenName: string;
   onRemove?: () => void;
   removing?: boolean;
 }
 
-export function KitchenRecipeListItem({ recipe, kitchenName, onRemove, removing }: KitchenRecipeListItemProps) {
+export function KitchenRecipeListItem({ recipe, kitchenId, kitchenName, onRemove, removing }: KitchenRecipeListItemProps) {
   const tags = recipe.tags ?? [];
 
   return (
     <div className="group block bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-      <Link to={`/recipes/${recipe.user_recipe_id}`}>
+      <Link to={`/kitchens/${kitchenId}/recipes/${recipe.id}`}>
         <div className="aspect-[4/3] bg-gray-100 relative overflow-hidden">
           {recipe.image_url ? (
             <img
@@ -59,7 +60,7 @@ export function KitchenRecipeListItem({ recipe, kitchenName, onRemove, removing 
       </Link>
 
       <div className="p-4">
-        <Link to={`/recipes/${recipe.user_recipe_id}`}>
+        <Link to={`/kitchens/${kitchenId}/recipes/${recipe.id}`}>
           <h3 className="font-semibold text-brown-dark group-hover:text-coral transition-colors line-clamp-2">
             {recipe.title}
           </h3>

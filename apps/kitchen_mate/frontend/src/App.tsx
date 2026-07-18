@@ -11,6 +11,7 @@ import { SavedRecipeView } from "./components/SavedRecipeView";
 import { SharedRecipePage } from "./components/SharedRecipePage";
 import { KitchensPage } from "./components/KitchensPage";
 import { KitchenDetailPage } from "./components/KitchenDetailPage";
+import { KitchenRecipeDetailPage } from "./components/KitchenRecipeDetailPage";
 import { AddRecipeDropdown } from "./components/AddRecipeDropdown";
 import { ViewModeToggle } from "./components/ViewModeToggle";
 import { useRequireAuth } from "./hooks/useRequireAuth";
@@ -208,6 +209,7 @@ function AppContent() {
             <Route path="/shared/:token" element={<SharedRecipePage />} />
             <Route path="/kitchens" element={<KitchensPage />} />
             <Route path="/kitchens/:id" element={<KitchenDetailPage />} />
+            <Route path="/kitchens/:kitchenId/recipes/:kitchenRecipeId" element={<KitchenRecipeDetailPage />} />
             {/* Redirect old /clip route to new /add/url */}
             <Route path="/clip" element={<Navigate to="/add/url" replace />} />
           </Routes>

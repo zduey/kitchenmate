@@ -190,3 +190,178 @@ def test_kitchen_recipe_list_falls_back_to_original_image(
     recipes = response.json()["recipes"]
     assert len(recipes) == 1
     assert recipes[0]["image_url"] == str(sample_recipe.image)
+
+
+# =============================================================================
+# GET /kitchens/{kitchen_id}/recipes/{kitchen_recipe_id}
+# =============================================================================
+
+
+def _setup_kitchen_with_shared_recipe(
+    client: "TestClient",
+    jwt_secret: str,
+    sample_recipe: Recipe,
+    owner_user_id: str,
+    owner_email: str,
+) -> tuple[str, str, str]:
+    """Create a kitchen, save and share a recipe as owner. Returns (kitchen_id, kitchen_recipe_id, user_recipe_id)."""
+    owner_token = create_test_jwt(owner_user_id, owner_email, jwt_secret)
+    owner_cookies = {"access_token": owner_token}
+
+    client.get("/api/auth/me", cookies=owner_cookies)
+
+    cached = asyncio.run(
+        store_recipe(
+            "https://example.com/pasta",
+            sample_recipe,
+            "abc123hash",
+            Parser.recipe_scrapers,
+        )
+    )
+    saved, _ = asyncio.run(
+        save_user_recipe(
+            user_id=owner_user_id,
+            recipe_id=cached.id,
+            recipe_data=sample_recipe,
+        )
+    )
+
+    resp = client.post("/api/kitchens", json={"name": "Detail Test Kitchen"}, cookies=owner_cookies)
+    assert resp.status_code == 201
+    kitchen_id = resp.json()["id"]
+
+    resp = client.post(
+        f"/api/kitchens/{kitchen_id}/recipes",
+        json={"user_recipe_id": saved.id},
+        cookies=owner_cookies,
+    )
+    assert resp.status_code == 201
+    kitchen_recipe_id = resp.json()["id"]
+
+    return kitchen_id, kitchen_recipe_id, saved.id
+
+
+def test_get_kitchen_recipe_owner_can_view(
+    kitchen_client: tuple["TestClient", str, FakeStorage],
+    sample_recipe: Recipe,
+) -> None:
+    """The member who shared a recipe can view its full detail."""
+    client, jwt_secret, _ = kitchen_client
+    owner_id = "owner-view-own"
+    owner_email = "owner-view-own@example.com"
+
+    kitchen_id, kitchen_recipe_id, _ = _setup_kitchen_with_shared_recipe(
+        client, jwt_secret, sample_recipe, owner_id, owner_email
+    )
+
+    owner_cookies = {"access_token": create_test_jwt(owner_id, owner_email, jwt_secret)}
+    resp = client.get(
+        f"/api/kitchens/{kitchen_id}/recipes/{kitchen_recipe_id}",
+        cookies=owner_cookies,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["recipe"]["title"] == sample_recipe.title
+
+
+def test_get_kitchen_recipe_non_owner_member_can_view(
+    kitchen_client: tuple["TestClient", str, FakeStorage],
+    sample_recipe: Recipe,
+) -> None:
+    """A kitchen member who did not share the recipe can still view its full detail."""
+    client, jwt_secret, _ = kitchen_client
+    owner_id = "owner-non-owner-test"
+    owner_email = "owner-non-owner@example.com"
+    member_id = "member-non-owner-test"
+    member_email = "member-non-owner@example.com"
+
+    kitchen_id, kitchen_recipe_id, _ = _setup_kitchen_with_shared_recipe(
+        client, jwt_secret, sample_recipe, owner_id, owner_email
+    )
+
+    # Add second member
+    owner_cookies = {"access_token": create_test_jwt(owner_id, owner_email, jwt_secret)}
+    client.get(
+        "/api/auth/me",
+        cookies={"access_token": create_test_jwt(member_id, member_email, jwt_secret)},
+    )
+    resp = client.post(
+        f"/api/kitchens/{kitchen_id}/members",
+        json={"email": member_email},
+        cookies=owner_cookies,
+    )
+    assert resp.status_code == 200
+
+    member_cookies = {"access_token": create_test_jwt(member_id, member_email, jwt_secret)}
+    resp = client.get(
+        f"/api/kitchens/{kitchen_id}/recipes/{kitchen_recipe_id}",
+        cookies=member_cookies,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["recipe"]["title"] == sample_recipe.title
+
+
+def test_get_kitchen_recipe_non_member_gets_403(
+    kitchen_client: tuple["TestClient", str, FakeStorage],
+    sample_recipe: Recipe,
+) -> None:
+    """A user who is not a kitchen member cannot view the recipe detail."""
+    client, jwt_secret, _ = kitchen_client
+    owner_id = "owner-non-member-test"
+    owner_email = "owner-non-member@example.com"
+    outsider_id = "outsider-non-member-test"
+    outsider_email = "outsider-non-member@example.com"
+
+    kitchen_id, kitchen_recipe_id, _ = _setup_kitchen_with_shared_recipe(
+        client, jwt_secret, sample_recipe, owner_id, owner_email
+    )
+
+    client.get(
+        "/api/auth/me",
+        cookies={"access_token": create_test_jwt(outsider_id, outsider_email, jwt_secret)},
+    )
+    outsider_cookies = {"access_token": create_test_jwt(outsider_id, outsider_email, jwt_secret)}
+    resp = client.get(
+        f"/api/kitchens/{kitchen_id}/recipes/{kitchen_recipe_id}",
+        cookies=outsider_cookies,
+    )
+    assert resp.status_code == 403
+
+
+def test_get_kitchen_recipe_not_found(
+    kitchen_client: tuple["TestClient", str, FakeStorage],
+    sample_recipe: Recipe,
+) -> None:
+    """A valid kitchen member gets 404 for a non-existent kitchen_recipe_id."""
+    client, jwt_secret, _ = kitchen_client
+    owner_id = "owner-not-found-test"
+    owner_email = "owner-not-found@example.com"
+
+    kitchen_id, _, _ = _setup_kitchen_with_shared_recipe(
+        client, jwt_secret, sample_recipe, owner_id, owner_email
+    )
+
+    owner_cookies = {"access_token": create_test_jwt(owner_id, owner_email, jwt_secret)}
+    resp = client.get(
+        f"/api/kitchens/{kitchen_id}/recipes/nonexistent-id",
+        cookies=owner_cookies,
+    )
+    assert resp.status_code == 404
+
+
+def test_get_kitchen_recipe_unauthenticated_gets_401(
+    kitchen_client: tuple["TestClient", str, FakeStorage],
+    sample_recipe: Recipe,
+) -> None:
+    """An unauthenticated request to view a kitchen recipe is rejected."""
+    client, jwt_secret, _ = kitchen_client
+    owner_id = "owner-unauth-test"
+    owner_email = "owner-unauth@example.com"
+
+    kitchen_id, kitchen_recipe_id, _ = _setup_kitchen_with_shared_recipe(
+        client, jwt_secret, sample_recipe, owner_id, owner_email
+    )
+
+    resp = client.get(f"/api/kitchens/{kitchen_id}/recipes/{kitchen_recipe_id}")
+    assert resp.status_code in (401, 403)
