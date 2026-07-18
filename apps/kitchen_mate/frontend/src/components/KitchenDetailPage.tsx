@@ -234,6 +234,7 @@ export function KitchenDetailPage() {
               <KitchenRecipeListItem
                 key={recipe.id}
                 recipe={recipe}
+                kitchenId={id!}
                 kitchenName={kitchen.name}
                 onRemove={() => handleRemoveRecipe(recipe.id)}
                 removing={removingRecipe === recipe.id}

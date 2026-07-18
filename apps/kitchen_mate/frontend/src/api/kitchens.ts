@@ -5,6 +5,7 @@ import type {
   KitchenSummary,
   ListKitchenRecipesResponse,
 } from "../types/kitchen";
+import type { UserRecipe } from "../types/recipe";
 
 export class KitchenError extends Error {
   statusCode: number;
@@ -115,6 +116,17 @@ export async function updateMemberRole(
     const body = await res.json().catch(() => ({ detail: res.statusText }));
     throw new KitchenError(body.detail ?? res.statusText, res.status);
   }
+}
+
+export async function getKitchenRecipe(
+  kitchenId: string,
+  kitchenRecipeId: string
+): Promise<UserRecipe> {
+  const res = await fetch(
+    `/api/kitchens/${encodeURIComponent(kitchenId)}/recipes/${encodeURIComponent(kitchenRecipeId)}`,
+    { credentials: "include" }
+  );
+  return handleResponse<UserRecipe>(res);
 }
 
 export async function removeKitchenRecipe(

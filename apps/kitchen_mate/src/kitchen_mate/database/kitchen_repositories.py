@@ -15,10 +15,17 @@ from kitchen_mate.database.models import (
     KitchenMemberModel,
     KitchenModel,
     KitchenRecipeModel,
+    RecipeModel,
     UserModel,
     UserRecipeModel,
 )
-from kitchen_mate.database.repositories import get_user_by_email
+from kitchen_mate.database.repositories import (
+    CachedRecipe,
+    UserRecipe,
+    _recipe_model_to_cached,
+    _user_recipe_model_to_schema,
+    get_user_by_email,
+)
 
 
 # =============================================================================
@@ -485,3 +492,34 @@ async def remove_kitchen_recipe(kitchen_id: str, kitchen_recipe_id: str, user_id
             return False
         await session.delete(kr)
         return True
+
+
+async def get_kitchen_recipe_with_lineage(
+    kitchen_id: str, kitchen_recipe_id: str, user_id: str
+) -> tuple[UserRecipe, CachedRecipe] | None:
+    """Get a kitchen recipe with its full lineage for any kitchen member.
+
+    Returns None if the recipe or kitchen membership is not found.
+    Raises ValueError if the user is not a member of the kitchen.
+    """
+    role = await get_member_role(kitchen_id, user_id)
+    if role is None:
+        raise ValueError("Not a member of this kitchen")
+
+    async with get_session() as session:
+        stmt = (
+            select(UserRecipeModel, RecipeModel)
+            .join(RecipeModel, UserRecipeModel.recipe_id == RecipeModel.id)
+            .join(KitchenRecipeModel, KitchenRecipeModel.user_recipe_id == UserRecipeModel.id)
+            .where(KitchenRecipeModel.id == kitchen_recipe_id)
+            .where(KitchenRecipeModel.kitchen_id == kitchen_id)
+            .where(UserRecipeModel.deleted_at.is_(None))
+        )
+        result = await session.execute(stmt)
+        row = result.one_or_none()
+
+        if row is None:
+            return None
+
+        user_recipe_model, recipe_model = row
+        return _user_recipe_model_to_schema(user_recipe_model), _recipe_model_to_cached(recipe_model)
