@@ -308,7 +308,9 @@ async def get_kitchen_recipe(
 
     recipe = user_recipe.recipe
     if user_recipe.thumbnail_key:
-        recipe = RecipeData(**{**recipe.model_dump(), "image": storage.get_url(user_recipe.thumbnail_key)})
+        recipe = RecipeData(
+            **{**recipe.model_dump(), "image": storage.get_url(user_recipe.thumbnail_key)}
+        )
 
     return GetUserRecipeResponse(
         id=user_recipe.id,

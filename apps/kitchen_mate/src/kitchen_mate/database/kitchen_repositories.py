@@ -522,4 +522,6 @@ async def get_kitchen_recipe_with_lineage(
             return None
 
         user_recipe_model, recipe_model = row
-        return _user_recipe_model_to_schema(user_recipe_model), _recipe_model_to_cached(recipe_model)
+        return _user_recipe_model_to_schema(user_recipe_model), _recipe_model_to_cached(
+            recipe_model
+        )
